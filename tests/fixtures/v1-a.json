@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "fixture_version": 1,
+  "directories": [
+    "empty-directory",
+    "nested",
+    "unicode"
+  ],
+  "files": [
+    {
+      "path": "empty.txt",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "nested/empty.bin",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "nested/file-00.bin",
+      "size": 4194304,
+      "sha256": "c61b5cbaf6db2d59472b21a45f4fbd37aac84067c001d92b6f1bb7092ccd397b"
+    },
+    {
+      "path": "nested/file-01.bin",
+      "size": 4194304,
+      "sha256": "c61b5cbaf6db2d59472b21a45f4fbd37aac84067c001d92b6f1bb7092ccd397b"
+    },
+    {
+      "path": "nested/file-02.bin",
+      "size": 4194304,
+      "sha256": "c61b5cbaf6db2d59472b21a45f4fbd37aac84067c001d92b6f1bb7092ccd397b"
+    },
+    {
+      "path": "nested/file-03.bin",
+      "size": 4194304,
+      "sha256": "4368f588d82b45f6efd966e72a7c689544f3f486933040484286d221222c3ad9"
+    },
+    {
+      "path": "nested/file-04.bin",
+      "size": 4194304,
+      "sha256": "0ee34d2eb3937ad6348f65412d182bbdf20a916e247d45edf1b78ea50f700315"
+    },
+    {
+      "path": "nested/file-05.bin",
+      "size": 4194304,
+      "sha256": "8152f7bba4abb8c189799b94b4d634efa4a5eb27d2dcc1877082f8d9cea583b3"
+    },
+    {
+      "path": "nested/file-06.bin",
+      "size": 4194304,
+      "sha256": "ff0a4ccd9d9a8c4e14182769a01d8766ed24188b081794c6f5ee6db125307101"
+    },
+    {
+      "path": "nested/file-07.bin",
+      "size": 4194304,
+      "sha256": "426e211568dbfae28f6c26454921faf15513f14ab2fafe81074de01d74746aef"
+    },
+    {
+      "path": "nested/file-08.bin",
+      "size": 4194304,
+      "sha256": "6d255761946f88dba9b69c711c0dbe866418e1e6bf5cd796b203de9befa9f951"
+    },
+    {
+      "path": "nested/file-09.bin",
+      "size": 4194304,
+      "sha256": "abb31d1fec6e9b2bb8d63dde4e70018341218d3424a21c174c5287046d7a3382"
+    },
+    {
+      "path": "nested/file-10.bin",
+      "size": 4194304,
+      "sha256": "65ff689406895e49086ab9e22ee46573a47805bfca9d21af6d09c9d1f12bf843"
+    },
+    {
+      "path": "nested/file-11.bin",
+      "size": 4194304,
+      "sha256": "93d73ecabf5fbd32c3d5bb8d7c8f4ce1f4f743aca9ffe2ae16ff15600222bf64"
+    },
+    {
+      "path": "nested/file-12.bin",
+      "size": 4194304,
+      "sha256": "18243af1c4d46c98c1de433f6fd9da4b53c6e4e9cde84cefa60669ee912ed8f5"
+    },
+    {
+      "path": "nested/file-13.bin",
+      "size": 4194304,
+      "sha256": "01042ef4624f7412fa017234944baa10c0fab108fe2f67948c9eee75b0e5cde9"
+    },
+    {
+      "path": "nested/file-14.bin",
+      "size": 4194304,
+      "sha256": "3ef46e1193c328dd29aa52712f4fe7438df6f23e4a95af337f175f59a0a19a7a"
+    },
+    {
+      "path": "nested/file-15.bin",
+      "size": 4194304,
+      "sha256": "480b97effbae26395a058d56e7a5def9441b8b3a8788e953508f974f80fcf3d4"
+    },
+    {
+      "path": "nested/file-16.bin",
+      "size": 4194304,
+      "sha256": "c4fa357d63f29498289ce0a3b6e0137e3141d4363a751bbdd88d208992eb03c1"
+    },
+    {
+      "path": "nested/file-17.bin",
+      "size": 4194304,
+      "sha256": "ed530cbfc918e730c2845c0755fec80ba94d275846b9d8b0fd82199ea496941f"
+    },
+    {
+      "path": "nested/file-18.bin",
+      "size": 4194304,
+      "sha256": "cb9dbfa03897617d0bfe35cad8a3d7808f21a62fcd93598aa1506845b29683ea"
+    },
+    {
+      "path": "nested/file-19.bin",
+      "size": 4194304,
+      "sha256": "61c169a65a38039f40b70f09549ea03264f12f2ee3fb920887f832206d159fd5"
+    },
+    {
+      "path": "nested/file-20.bin",
+      "size": 4194304,
+      "sha256": "57813ef7e9b25b93be16124956345bf19353335448cd3e985854851199c8a1e4"
+    },
+    {
+      "path": "nested/file-21.bin",
+      "size": 4194304,
+      "sha256": "112ba24be866f8264097a91b7f3908959663c482a06fc3a4cead8d8466d5ca4a"
+    },
+    {
+      "path": "nested/file-22.bin",
+      "size": 4194304,
+      "sha256": "b153d32204993cf3d5c0d64c59b441e6408aa4434f80dda25ff3c68b29620f8d"
+    },
+    {
+      "path": "nested/file-23.bin",
+      "size": 4194304,
+      "sha256": "2473fd46be87369d749f738809ab5a0dcf7c9519ecb46dcf0f00db2b04e4e69e"
+    },
+    {
+      "path": "nested/file-24.bin",
+      "size": 4194304,
+      "sha256": "691719e7dbc993e0e5252b2150607f31c1bd2b396892e0c697246d95d092a8d5"
+    },
+    {
+      "path": "nested/file-25.bin",
+      "size": 4194304,
+      "sha256": "6d31b35c8a6fdaae794c2b37b4b64a2394866c34fa5e13c4f4f5f5aa038df622"
+    },
+    {
+      "path": "nested/file-26.bin",
+      "size": 4194304,
+      "sha256": "68272f8f34c497681bd39a8aba1c5dd78a74f23ae5a9868bcac584aada6c2d7d"
+    },
+    {
+      "path": "nested/file-27.bin",
+      "size": 4194304,
+      "sha256": "1d77409fbd44d4f17beeba33feb4ca15d2e2afbbf1e7621f7ba89ba24e3af60b"
+    },
+    {
+      "path": "nested/file-28.bin",
+      "size": 4194304,
+      "sha256": "2328f319f83e6a7a75e050a14fdc71e44fe2dc76d4bf6f9a0e5063a95905cdec"
+    },
+    {
+      "path": "nested/file-29.bin",
+      "size": 4194304,
+      "sha256": "9583ab28f4114a1dd8feb9e1ac62dada7614e4aab4bc712de79a92c528b882aa"
+    },
+    {
+      "path": "nested/file-30.bin",
+      "size": 4194304,
+      "sha256": "4fb38bb6052b26bf16466109604650c61948a5da57a48505aed1b0960e913bae"
+    },
+    {
+      "path": "nested/file-31.bin",
+      "size": 4194304,
+      "sha256": "bc6cadd2590640fc070b64507d1509f81f58b1b00a026dc0bfe8c062b9bc27af"
+    },
+    {
+      "path": "nested/file-32.bin",
+      "size": 4194304,
+      "sha256": "51a719b3c05b1b0d762203b6845884cc48cc443a092900ac2828030b1457a60a"
+    },
+    {
+      "path": "nested/file-33.bin",
+      "size": 4194304,
+      "sha256": "2cfe08ff94da47697530eb2ef4f723dfa63c5b87233604ac19fdd783089cc960"
+    },
+    {
+      "path": "nested/file-34.bin",
+      "size": 4194304,
+      "sha256": "d680101c6e872bf6428058828b918de9fc5ddfb06d956d3ef842e666dbe08fce"
+    },
+    {
+      "path": "nested/file-35.bin",
+      "size": 4194304,
+      "sha256": "f17d3b26fd536d6ca9798d91ddfb18f6900320a2bc830a4f8071b49c81bdeecf"
+    },
+    {
+      "path": "nested/file-36.bin",
+      "size": 4194304,
+      "sha256": "0e6ad1ad181498f852253732fbb7f8d58ef522ff42815114a6b44a5e77eaf3b5"
+    },
+    {
+      "path": "nested/file-37.bin",
+      "size": 4194304,
+      "sha256": "76a4974bdd21be71bc9517cf2aa5ee1a3913717022375238ed730afb580efdb0"
+    },
+    {
+      "path": "nested/file-38.bin",
+      "size": 4194304,
+      "sha256": "9650cb92084496a747c2f9658a0e21a21295b16049475657bdf6363d0d04c071"
+    },
+    {
+      "path": "nested/file-39.bin",
+      "size": 4194304,
+      "sha256": "f9f004a86128030140884fab51fbcb35cf1c0287d13333ee3c3bdf860a23d8f4"
+    },
+    {
+      "path": "nested/file-40.bin",
+      "size": 4194304,
+      "sha256": "d15adb95a6b5708ee8c03ba7999d73047de59b17e81765e44becc93ee947698d"
+    },
+    {
+      "path": "nested/file-41.bin",
+      "size": 4194304,
+      "sha256": "eee5ac31c1ac59709837133eb0a7a08d0e130432b974b9067055074c9d65bfff"
+    },
+    {
+      "path": "nested/file-42.bin",
+      "size": 4194304,
+      "sha256": "c85014dd3b04193cfa5f5c2d6401210028b383aed79ee285ce195c816cadfda0"
+    },
+    {
+      "path": "nested/file-43.bin",
+      "size": 4194304,
+      "sha256": "64097ff1d90393d34c623c50dba7380f6b93ac8ec1944bd9adc48d6fe8936326"
+    },
+    {
+      "path": "nested/file-44.bin",
+      "size": 4194304,
+      "sha256": "7c50b5094e71da86b506cbc9edaeb5c8969914319f1b573d85ad6cd0ce27b6a9"
+    },
+    {
+      "path": "nested/file-45.bin",
+      "size": 4194304,
+      "sha256": "07ca76ef4619b35a125df57db28af43a813d000248c0cce9198090b786b0251f"
+    },
+    {
+      "path": "nested/file-46.bin",
+      "size": 4194304,
+      "sha256": "6cb219b938f8e56ba04aadd17190a980696b600b0ae8f21ad14daff570e7d4b6"
+    },
+    {
+      "path": "nested/file-47.bin",
+      "size": 4194304,
+      "sha256": "df4e2ce052d16890b83dba0d62a5b2e25b85b31a499ad0850a04753fa23da7c3"
+    },
+    {
+      "path": "nested/file-48.bin",
+      "size": 4194304,
+      "sha256": "2b66cdf70763951995e01306455079b8e7c60ba2c4b3a843c66d943a4e745646"
+    },
+    {
+      "path": "nested/file-49.bin",
+      "size": 4194304,
+      "sha256": "ba7c0e0022326a29a40d77fa8edf3976ac2ad3ce504399192b7cf19f77886576"
+    },
+    {
+      "path": "nested/file-50.bin",
+      "size": 4194304,
+      "sha256": "b26ca12033e06459ba57a3a81f5150b488d6f768bf5e81f1590c24bdc64221ee"
+    },
+    {
+      "path": "nested/file-51.bin",
+      "size": 4194304,
+      "sha256": "3b3712da0ec18ce074e577494d99dd6c08ecdcffc1785e891afb1f43e5eabe16"
+    },
+    {
+      "path": "nested/file-52.bin",
+      "size": 4194304,
+      "sha256": "c4e8234f95227ccf77dda90a72e720aef93d55852679aacc30e198796676a070"
+    },
+    {
+      "path": "nested/file-53.bin",
+      "size": 4194304,
+      "sha256": "d20b05062113a1a93f74e6ef2a036cb2f48727f84bbad4311de08240e9a8a9e4"
+    },
+    {
+      "path": "nested/file-54.bin",
+      "size": 4194304,
+      "sha256": "08eadb02497a76d4b61f0f645870fc51bf8d0f2b98c64c7b0088626578b0f0bf"
+    },
+    {
+      "path": "nested/file-55.bin",
+      "size": 4194304,
+      "sha256": "867a205f5a749646ba0995746961aaa39298525d3cbad85d1ff610d745455973"
+    },
+    {
+      "path": "nested/file-56.bin",
+      "size": 4194304,
+      "sha256": "4ac86e1508507903a2461916ea9f098b30d565f2ebf3e6660f0b84225b32e4f5"
+    },
+    {
+      "path": "nested/file-57.bin",
+      "size": 4194304,
+      "sha256": "acb9d5fb5f2d0b4167ad616dcd4855895cff5ac311903c690f0b170a7d3f59b9"
+    },
+    {
+      "path": "readonly.bin",
+      "size": 4194304,
+      "sha256": "bf4078f65c2a6bbbf4c9b3447b52fe86d747b04390c1231e910e9ea12617af0c"
+    },
+    {
+      "path": "unicode/composed-é.bin",
+      "size": 8388608,
+      "sha256": "5c29905cd263aaf474f0c08c769a8d25a5f10dfccfeda264c52a39b9f191277c"
+    },
+    {
+      "path": "unicode/decomposed-é.bin",
+      "size": 8388608,
+      "sha256": "656f6b0a09286a1e45dc72a85bc6d9f045540aad5530735683b1835f3cc5f82c"
+    },
+    {
+      "path": "unicode/žluťoučký-雪.txt",
+      "size": 4194304,
+      "sha256": "9d674824bb21373d3418868dc6f9c57f27b6141ee960262b6d7453511eaa8601"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "restic": {
+    "version": "0.19.1",
+    "license": "BSD-2-Clause",
+    "source": "https://github.com/restic/restic/releases/tag/v0.19.1",
+    "windows": {
+      "url": "https://github.com/restic/restic/releases/download/v0.19.1/restic_0.19.1_windows_amd64.zip",
+      "sha256": "da948ad707ed690426473aaba2046cd61f8f90f6f0e7dab6be0d5796531de67d",
+      "executable_sha256": "b0dd1fd21eea5d8fe1325f55f7118213c21f36de8a261e04c0624a5ab9fd7830",
+      "member": "restic_0.19.1_windows_amd64.exe"
+    },
+    "linux": {
+      "url": "https://github.com/restic/restic/releases/download/v0.19.1/restic_0.19.1_linux_amd64.bz2",
+      "sha256": "f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c",
+      "executable_sha256": "20d4142678d0d95ec11a4759def1b73fd9190abc9ca19e4b62d067c0b387e639"
+    }
+  },
+  "kopia": {
+    "version": "0.23.1",
+    "license": "Apache-2.0",
+    "source": "https://github.com/kopia/kopia/releases/tag/v0.23.1",
+    "windows": {
+      "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-windows-x64.zip",
+      "sha256": "f0369d9657dbe47a1b8b6ff4e308c5958a4813b405d4e32ae9d81b3f2b3d8251",
+      "executable_sha256": "96c0946314b50dcc7c5ae9d3ec7e3763e742fcebf7d5cbebdaac3ceee5fb3bd7",
+      "member": "kopia-0.23.1-windows-x64/kopia.exe"
+    },
+    "linux": {
+      "url": "https://github.com/kopia/kopia/releases/download/v0.23.1/kopia-0.23.1-linux-x64.tar.gz",
+      "sha256": "416d0f84a3dbb321a8b2d8f0997b1a0a6e915babe79ee76fa6e4d2bd1e1c5178",
+      "executable_sha256": "e306c3d48b47756912928738241baffe68d1a8a16ab804ab3fbabd725a61df7f",
+      "member": "kopia-0.23.1-linux-x64/kopia"
+    }
+  }
+}

@@ -1,0 +1,144 @@
+name: CI and experimental packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  qualify:
+    name: R0 smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust
+        run: rustup show
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Lint
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Unit and process-boundary tests
+        run: cargo test --locked
+      - name: Installer and evidence negative tests
+        run: python -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Documentation references
+        run: python scripts/check-docs.py
+      - name: Build
+        run: cargo build --release --locked
+      - name: Install checksum-pinned comparison backends
+        run: python scripts/install-backends.py
+      - name: Observe smoke environment
+        run: python scripts/smoke-profile.py .tools/ci-profile.json
+      - name: Independent full-size fixture oracles
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          & "./target/release/peervault$suffix" fixture .peervault-work-fixture-a
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-fixture.py .peervault-work-fixture-a/source --revision 1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "./target/release/peervault$suffix" fixture .peervault-work-fixture-b --revision 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-fixture.py .peervault-work-fixture-b/source --revision 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: restic smoke baseline
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          & "./target/release/peervault$suffix" bakeoff restic --executable ".tools/restic$suffix" --work-dir .peervault-work-restic --profile .tools/ci-profile.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Kopia smoke baseline
+        if: ${{ !cancelled() }}
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          & "./target/release/peervault$suffix" bakeoff kopia --executable ".tools/kopia$suffix" --work-dir .peervault-work-kopia --profile .tools/ci-profile.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Map experimental reports to inventoried evidence
+        if: ${{ !cancelled() }}
+        run: |
+          $failedExports = 0
+          foreach ($backend in @('restic', 'kopia')) {
+            if (Test-Path ".peervault-work-$backend/evidence.json") {
+              python scripts/evidence.py export ".peervault-work-$backend" .peervault-work-evidence --profile .tools/ci-profile.json
+              if ($LASTEXITCODE -ne 0) { $failedExports++ }
+            }
+          }
+          if ($failedExports -gt 0) { exit 1 }
+      - name: Retain diagnostic reports (synthetic data only)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r0-evidence-${{ matrix.os }}
+          include-hidden-files: true
+          path: .peervault-work-evidence/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Package experimental qualification tool
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item "target/release/peervault$suffix" dist/
+          Copy-Item README.md,backend-lock.json dist/ -ErrorAction Stop
+          Copy-Item docs/r0.md dist/QUALIFICATION.md -ErrorAction Stop
+          python scripts/package-notices.py dist/THIRD-PARTY-NOTICES.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsWindows) {
+            Compress-Archive -Path dist/* -DestinationPath peervault-${{ matrix.os }}.zip
+          } else {
+            tar -czf peervault-${{ matrix.os }}.tar.gz -C dist .
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Get-ChildItem peervault-*.zip,peervault-*.tar.gz | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Set-Content "$($_.FullName).sha256" -Encoding utf8NoBOM
+          }
+      - name: Retain packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-${{ matrix.os }}
+          path: |
+            peervault-*.zip
+            peervault-*.tar.gz
+            peervault-*.sha256
+          if-no-files-found: error
+
+  release:
+    name: Draft experimental release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: qualify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: packages
+      - name: Create draft with verified packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" packages/* --verify-tag --draft --prerelease
+          --title "PeerVault $RELEASE_TAG (experimental R0 tools)"
+          --notes "Synthetic recovery qualification tooling. Not a supported backup release.
+          R0 and V0.1 gates remain open; see docs/r0.md. Backends are external and not bundled."

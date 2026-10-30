@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "profile_id": "wsl-ubuntu22-ext4-smoke",
+  "revision": 1,
+  "classification": "smoke",
+  "os": "linux",
+  "architecture": "x86_64",
+  "environment": {
+    "distribution": "Ubuntu 22.04.4 LTS under WSL2",
+    "kernel": "6.18.54.1-microsoft-standard-WSL2",
+    "filesystem": "ext4",
+    "storage": "WSL virtual disk on the same workstation",
+    "coverage": "synthetic same-host smoke only",
+    "locale": "C.UTF-8 in backend process",
+    "clock_probe": "unmeasured"
+  },
+  "missing_fields": [
+    "target Ubuntu 24.04 LTS image/point-release not available in this WSL profile",
+    "image SHA-256 and full kernel/package/mount settings",
+    "physical media/controller separation",
+    "clock offset/quality probe",
+    "umask/mode and resource observations"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-29",
+  "source": "project-planning working tree; no upstream publication inferred",
+  "inputs": {
+    "projects/peervault.md": "c3e5c2e59182a5cf2135efb6d1348f6c6007cab16194bc48b17df24fdfe52fe4",
+    "projects/peervault-release-plan.md": "5ca55aff7578d86c5e2c50462c2df3e7d73f9d56d261b1e9be75b9cdafda97e1",
+    "projects/peervault-contracts.md": "a0df2b7a228a73b8f092ded11a04aaba1078e4986c87b02235a723277209f62b",
+    "projects/peervault-validation.md": "15e32e561625fd7715771ba32624078e218efc39399fe75f4d1ce0179bb87a9d"
+  }
+}

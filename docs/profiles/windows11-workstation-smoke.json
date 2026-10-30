@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "profile_id": "windows11-26200-9168-smoke",
+  "revision": 1,
+  "classification": "smoke",
+  "os": "windows",
+  "architecture": "x86_64",
+  "environment": {
+    "os_caption": "Microsoft Windows 11 Home",
+    "version": "10.0.26200.9168",
+    "display_version": "25H2",
+    "filesystem": "NTFS",
+    "source_directory_case_sensitivity": "disabled (fsutil query)",
+    "source_media": "local-workbench-volume",
+    "repository_media": "same local-workbench-volume",
+    "coverage": "synthetic local history only; no independent failure domain",
+    "clock_probe": "unmeasured",
+    "locale": "fixture names UTF-8, not normalized"
+  },
+  "missing_fields": [
+    "NTFS settings and cluster geometry query denied without elevation",
+    "exact long-path registry result not retained",
+    "physical device/controller identity and independent media not qualified",
+    "clock offset/quality probe",
+    "Windows inherited ACL class and effective permissions"
+  ]
+}
