@@ -313,7 +313,8 @@ fn run() -> Result<()> {
                     &snapshot,
                     &kit,
                     password_file.as_deref(),
-                )?;
+                )
+                .map_err(production::operation_failure)?;
             }
             RecoveryKitAction::Verify {
                 kit,
@@ -326,7 +327,8 @@ fn run() -> Result<()> {
                     repository.as_deref(),
                     backend.as_deref(),
                     password_file.as_deref(),
-                )?;
+                )
+                .map_err(production::operation_failure)?;
             }
         },
     }

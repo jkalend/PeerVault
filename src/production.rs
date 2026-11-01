@@ -377,7 +377,7 @@ fn capture_id(tags: &[String]) -> Option<String> {
     })
 }
 
-fn validate_capture_id(id: &str) -> Result<()> {
+pub(crate) fn validate_capture_id(id: &str) -> Result<()> {
     ensure!(
         matches!(id.len(), 32 | 64) && id.bytes().all(|byte| byte.is_ascii_hexdigit()),
         "invalid capture ID"
@@ -497,12 +497,7 @@ pub fn capture(
             "empty source selection; no snapshot created",
         ));
     }
-    let mut capture_bytes = [0u8; 16];
-    getrandom::fill(&mut capture_bytes).context("OS random source unavailable")?;
-    let capture_id: String = capture_bytes
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let capture_id = random_hex()?;
     let mut command = command(&backend, repository, &credential)?;
     command.current_dir(source).args([
         "backup",
@@ -997,7 +992,7 @@ fn set_mode(_path: &Path, _mode: u32) -> Result<()> {
     Ok(())
 }
 
-fn random_hex() -> Result<String> {
+pub(crate) fn random_hex() -> Result<String> {
     let mut bytes = [0u8; 16];
     getrandom::fill(&mut bytes)?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
