@@ -6,6 +6,7 @@ use std::{fs, path::PathBuf};
 mod pins;
 mod production;
 mod recovery_kit;
+mod retention;
 
 #[derive(Parser)]
 #[command(
@@ -128,6 +129,17 @@ enum Commands {
     RecoveryKit {
         #[command(subcommand)]
         action: RecoveryKitAction,
+    },
+    /// Preview retention decisions without deleting or maintaining the repository.
+    RetentionPreview {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        policy: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
     },
 }
 
@@ -298,6 +310,15 @@ fn run() -> Result<()> {
                 password_file.as_deref(),
             )
             .map_err(production::operation_failure)?;
+        }
+        Commands::RetentionPreview {
+            repository,
+            backend,
+            policy,
+            password_file,
+        } => {
+            retention::preview(&repository, &backend, &policy, password_file.as_deref())
+                .map_err(production::operation_failure)?;
         }
         Commands::RecoveryKit { action } => match action {
             RecoveryKitAction::Generate {

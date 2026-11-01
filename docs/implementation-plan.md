@@ -10,8 +10,10 @@ passing run evidence. The first CP2 slice is recorded in
 recorded in [ADR 0001](adr/0001-r0-backend-selection.md). A V0.1 local
 capture/history/verify/restore adapter exists as experimental source with smoke
 evidence; a V0.2 RecoveryKit and author-only copy drill and a V0.3 one-peer
-copy-record drill exist. Their production, authenticated-transport,
-independent-operator and clean-hardware gates remain open.
+copy-record drill and a read-only retention preview exist. V0.4 selected the
+backup-only 0.9 path; supported sync remains a separate open branch. Their
+production, authenticated-transport, independent-operator and clean-hardware
+gates remain open.
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent

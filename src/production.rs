@@ -597,15 +597,12 @@ fn publish_manifest(
     Ok(id)
 }
 
-pub fn history(
+pub(crate) fn snapshot_refs(
+    backend: &BackendInfo,
     repository: &Path,
-    backend_path: &Path,
-    password_file: Option<&Path>,
-) -> Result<HistoryReport> {
-    let backend = backend(backend_path)?;
-    let credential = Credential::new(password_file)?;
-    ensure!(repository.is_dir(), "repository does not exist");
-    let snapshots = snapshots(&backend, repository, &credential)?;
+    credential: &Credential,
+) -> Result<Vec<SnapshotRef>> {
+    let snapshots = snapshots(backend, repository, credential)?;
     let mut manifests = BTreeMap::new();
     for snapshot in &snapshots {
         for tag in &snapshot.tags {
@@ -640,10 +637,22 @@ pub fn history(
             oracle_manifest: manifests.get(&oracle_key).cloned(),
         });
     }
+    Ok(refs)
+}
+
+pub fn history(
+    repository: &Path,
+    backend_path: &Path,
+    password_file: Option<&Path>,
+) -> Result<HistoryReport> {
+    let backend = backend(backend_path)?;
+    let credential = Credential::new(password_file)?;
+    ensure!(repository.is_dir(), "repository does not exist");
+    let snapshots = snapshot_refs(&backend, repository, &credential)?;
     let report = HistoryReport {
         schema_version: SCHEMA_VERSION,
         result: "pass",
-        snapshots: refs,
+        snapshots,
     };
     print_json(&report)?;
     Ok(report)

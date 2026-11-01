@@ -2,12 +2,13 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0/V0.1/V0.2/V0.3 implementation.** The Rust fixture/
-compare/bakeoff harness, backend pins, CI definitions, a V0.1 local capture/
-history/verify/restore adapter, a V0.2 secret-free RecoveryKit/copy drill and a
-V0.3 one-peer copy-record drill exist. Production backup/restore, authenticated
-peer transport, clean-hardware recovery, desktop/sync and complete qualification
-remain open. Each restore report
+**Status: experimental R0–V0.5 implementation.** The Rust fixture/compare/bakeoff
+harness, backend pins, CI definitions, a V0.1 local capture/history/verify/restore
+adapter, a V0.2 secret-free RecoveryKit/copy drill, a V0.3 one-peer copy-record
+drill, a V0.4 backup-only sync decision and a read-only V0.5 retention preview
+exist. Production backup/restore, authenticated peer transport, clean-hardware
+recovery, deletion/maintenance, desktop/sync and complete qualification remain
+open. Each restore report
 covers an exact tested snapshot/profile/drill, not a permanent recoverability
 guarantee.
 
@@ -110,6 +111,19 @@ python scripts/v03-peer-copy.py --binary ./peervault --backend .tools/restic --s
 The tested transport is a local filesystem. Authenticated network transport,
 pairing, keyless receivers and independent hardware remain open; see
 [V0.3 limits](docs/v0.3.md).
+
+V0.4 selected the pre-approved **backup-only 0.9** path rather than adopting an
+unqualified live-folder sync engine. No sync conflict or tombstone behavior is
+claimed; see [ADR 0002](docs/adr/0002-v0.4-sync-decision.md).
+
+V0.5 is a **read-only retention preview**. It lists keep/protected/delete
+candidates and never deletes or runs backend maintenance:
+
+```text
+peervault retention-preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --password-file <secret>
+```
+
+See [V0.5 limits](docs/v0.5.md). There is no PeerVault GC command.
 
 ## Components
 

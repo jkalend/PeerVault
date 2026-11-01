@@ -79,6 +79,14 @@ def main():
     result = run(binary, ["verify", "--repository", str(repository), "--backend", backend])
     assert result.returncode == 0, result.stderr
 
+    policy = root / "retention.json"
+    policy.write_text('{"schema_version":1,"keep_last":1,"keep_tagged":[],"keep_snapshots":[],"minimum_keep":1}\n', encoding="utf-8")
+    result = run(binary, ["retention-preview", "--repository", str(repository), "--backend", backend, "--policy", str(policy)])
+    assert result.returncode == 0, result.stderr
+    plan = json.loads(result.stdout)
+    assert plan["apply"] is False and len(plan["keep"]) == 1 and len(plan["delete_candidates"]) == 1
+    assert len(json.loads(run(binary, ["history", "--repository", str(repository), "--backend", backend]).stdout)["snapshots"]) == 2
+
     known = {snapshot["id"]: snapshot for snapshot in history["snapshots"]}
     assert first["snapshot_id"] in known and second["snapshot_id"] in known
     assert known[first["snapshot_id"]]["oracle_manifest"]

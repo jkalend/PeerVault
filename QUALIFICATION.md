@@ -104,6 +104,15 @@ This records `requested` through `clean-restored`, removes the source, full-read
 the peer and restores exactly. The transport is local filesystem only;
 authenticated network transport and independent hardware remain open.
 
+## Preview retention
+
+```text
+peervault retention-preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --password-file <secret>
+```
+
+This is read-only. It never deletes snapshots or runs backend maintenance; see
+[V0.5 limits](docs/v0.5.md).
+
 ## Run a smoke baseline
 
 Use a profile that matches the host OS and architecture. The checked-in profiles
