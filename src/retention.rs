@@ -5,7 +5,7 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs::File,
     io::Read,
     path::Path,
@@ -83,6 +83,14 @@ fn validate_policy(policy: &RetentionPolicy) -> Result<()> {
     Ok(())
 }
 
+fn instant(value: &str) -> Result<i64> {
+    let parsed = chrono::DateTime::parse_from_rfc3339(value)
+        .with_context(|| format!("invalid snapshot time {value}"))?;
+    parsed
+        .timestamp_nanos_opt()
+        .context("snapshot time is outside the supported range")
+}
+
 fn select(
     policy: &RetentionPolicy,
     snapshots: &[SnapshotRef],
@@ -92,8 +100,16 @@ fn select(
     Vec<RetentionDecision>,
 )> {
     validate_policy(policy)?;
-    let mut ordered = snapshots.to_vec();
-    ordered.sort_by(|left, right| left.time.cmp(&right.time));
+    let mut timed: Vec<(i64, SnapshotRef)> = snapshots
+        .iter()
+        .map(|snapshot| Ok((instant(&snapshot.time)?, snapshot.clone())))
+        .collect::<Result<_>>()?;
+    timed.sort_by_key(|(timestamp, _)| *timestamp);
+    let instants: BTreeMap<String, i64> = timed
+        .iter()
+        .map(|(timestamp, snapshot)| (snapshot.id.clone(), *timestamp))
+        .collect();
+    let ordered: Vec<SnapshotRef> = timed.into_iter().map(|(_, snapshot)| snapshot).collect();
     let known: BTreeMap<&str, &SnapshotRef> = ordered
         .iter()
         .map(|snapshot| (snapshot.id.as_str(), snapshot))
@@ -104,8 +120,17 @@ fn select(
             "explicit keep snapshot not found"
         );
     }
+    let restorable: Vec<&SnapshotRef> = ordered
+        .iter()
+        .filter(|snapshot| snapshot.oracle_manifest.is_some())
+        .collect();
+    let restorable_ids: BTreeSet<&str> = restorable
+        .iter()
+        .map(|snapshot| snapshot.id.as_str())
+        .collect();
     let mut keep: BTreeMap<String, RetentionDecision> = BTreeMap::new();
-    for snapshot in ordered.iter().rev().take(policy.keep_last) {
+    for snapshot in restorable.iter().rev().take(policy.keep_last) {
+        let snapshot = *snapshot;
         keep.insert(snapshot.id.clone(), decision(snapshot, "keep-last"));
     }
     for tag in &policy.keep_tagged {
@@ -121,14 +146,20 @@ fn select(
         keep.entry(snapshot.id.clone())
             .or_insert_with(|| decision(snapshot, "keep-snapshot"));
     }
-    while keep.len() < policy.minimum_keep {
-        let Some(snapshot) = ordered
+    while keep
+        .values()
+        .filter(|decision| restorable_ids.contains(decision.id.as_str()))
+        .count()
+        < policy.minimum_keep
+    {
+        let Some(snapshot) = restorable
             .iter()
             .rev()
             .find(|snapshot| !keep.contains_key(&snapshot.id))
         else {
             break;
         };
+        let snapshot = *snapshot;
         keep.insert(snapshot.id.clone(), decision(snapshot, "minimum-keep"));
     }
     let mut protected = Vec::new();
@@ -149,7 +180,7 @@ fn select(
         .map(|snapshot| decision(snapshot, "eligible-after-qualified-retention-gate"))
         .collect();
     let mut keep: Vec<RetentionDecision> = keep.into_values().collect();
-    keep.sort_by(|left, right| left.time.cmp(&right.time));
+    keep.sort_by_key(|decision| instants.get(&decision.id).copied().unwrap_or(i64::MAX));
     Ok((keep, protected, delete_candidates))
 }
 
@@ -245,6 +276,36 @@ mod tests {
         assert!(keep_ids.contains(&snapshots[3].id.as_str()));
         assert_eq!(protected.len(), 1);
         assert_eq!(protected[0].id, snapshots[2].id);
+        assert!(candidates.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn preview_orders_by_instant_not_timestamp_text() -> Result<()> {
+        let mut earlier = snapshot(1, &[], true);
+        earlier.time = "2026-11-01T00:30:00+01:00".into();
+        let mut later = snapshot(2, &[], true);
+        later.time = "2026-11-01T00:00:00Z".into();
+        let (keep, _, _) = select(&policy(1, &[], &[], 1), &[earlier, later.clone()])?;
+        assert_eq!(keep.len(), 1);
+        assert_eq!(keep[0].id, later.id);
+        Ok(())
+    }
+
+    #[test]
+    fn incomplete_newest_capture_does_not_consume_keep_slot() -> Result<()> {
+        let mut older = snapshot(1, &[], true);
+        older.time = "2026-11-01T00:00:01+00:00".into();
+        let mut incomplete = snapshot(2, &[], false);
+        incomplete.time = "2026-11-01T00:00:02+00:00".into();
+        let (keep, protected, candidates) = select(
+            &policy(1, &[], &[], 1),
+            &[older.clone(), incomplete.clone()],
+        )?;
+        assert_eq!(keep.len(), 1);
+        assert_eq!(keep[0].id, older.id);
+        assert_eq!(protected.len(), 1);
+        assert_eq!(protected[0].id, incomplete.id);
         assert!(candidates.is_empty());
         Ok(())
     }
