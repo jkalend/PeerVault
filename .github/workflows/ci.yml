@@ -56,6 +56,11 @@ jobs:
         run: cargo build --release --locked
       - name: Install checksum-pinned comparison backends
         run: python scripts/install-backends.py
+      - name: V0.1 local capture/restore smoke
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          python scripts/v01-smoke.py --binary "./target/release/peervault$suffix" --backend ".tools/restic$suffix" --root .peervault-work-v01-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Observe smoke environment
         run: python scripts/smoke-profile.py .tools/ci-profile.json
       - name: Independent full-size fixture oracles
@@ -109,7 +114,7 @@ jobs:
           Copy-Item QUALIFICATION.md dist/QUALIFICATION.md -ErrorAction Stop
           Copy-Item docs/r0.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
           Copy-Item docs/profiles/* dist/docs/profiles/ -ErrorAction Stop
-          Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/evidence.py dist/scripts/ -ErrorAction Stop
+          Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/evidence.py,scripts/v01-smoke.py dist/scripts/ -ErrorAction Stop
           Copy-Item tests/fixtures/v1-a.json,tests/fixtures/v1-b.json dist/tests/fixtures/ -ErrorAction Stop
           python scripts/package-notices.py dist/THIRD-PARTY-NOTICES.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

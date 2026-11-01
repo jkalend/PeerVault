@@ -19,6 +19,7 @@ components-lock.txt             Components commit used for this build
 scripts/install-backends.py     bounded, checksum-verified backend installer
 scripts/check-fixture.py        independent Python fixture oracle
 scripts/evidence.py             append-only evidence exporter/verifier
+scripts/v01-smoke.py            repeatable V0.1 capture/restore smoke
 tests/fixtures/v1-a.json        revision 1 golden
 tests/fixtures/v1-b.json        revision 2 golden
 docs/                           runbook, roadmap, catch-up plan, profiles and planning inputs
@@ -64,6 +65,19 @@ python scripts/check-fixture.py .peervault-work-fixture-b/source --revision 2
 
 Each fixture and work directory must be new. The Python checker reads and hashes
 the source itself; backend output never supplies expected hashes.
+
+## Verify V0.1 local capture and restore
+
+After installing the backends:
+
+```text
+python scripts/v01-smoke.py --binary ./peervault --backend .tools/restic --root .peervault-work-v01-smoke
+```
+
+On Windows use `.\peervault.exe` and `.tools\restic.exe`. The script creates a
+new work root, captures two snapshots, restores both exactly, checks the oracle,
+empty selection, wrong password and a truncated repository. It exits nonzero on
+any mismatch.
 
 ## Run a smoke baseline
 
