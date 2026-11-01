@@ -149,15 +149,7 @@ fn validate_kit(kit: &RecoveryKit) -> Result<()> {
     );
     production::validate_snapshot_id(&kit.evidence.snapshot_id)?;
     production::validate_snapshot_id(&kit.evidence.manifest_snapshot_id)?;
-    ensure!(
-        matches!(kit.evidence.capture_id.len(), 32 | 64)
-            && kit
-                .evidence
-                .capture_id
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit()),
-        "invalid kit capture ID"
-    );
+    production::validate_capture_id(&kit.evidence.capture_id)?;
     ensure!(
         kit.evidence.verification == "manifest-hash",
         "unsupported kit verification mode"
@@ -388,9 +380,7 @@ pub fn generate(
         _ => bail!("unsupported backend platform"),
     };
     let (_, harness_sha256) = hash_file(&std::env::current_exe()?)?;
-    let mut kit_bytes = [0u8; 16];
-    getrandom::fill(&mut kit_bytes).context("OS random source unavailable")?;
-    let kit_id: String = kit_bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    let kit_id = production::random_hex()?;
     let kit = RecoveryKit {
         schema_version: SCHEMA_VERSION,
         kit_id: kit_id.clone(),

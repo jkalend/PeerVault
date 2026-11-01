@@ -16,7 +16,10 @@ def remove_tree(path):
         os.chmod(target, 0o666)
         function(target)
 
-    shutil.rmtree(path, onexc=retry)
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=retry)
+    else:
+        shutil.rmtree(path, onerror=lambda function, target, error: retry(function, target, error))
 
 
 def tree(root):
