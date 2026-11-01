@@ -40,11 +40,26 @@ class EvidenceTests(unittest.TestCase):
             report = {"schema_version": 1}
             (work / "evidence.json").write_text(json.dumps(report), encoding="utf-8")
             with self.assertRaises(ValueError): evidence.export(work, root / "registry")
+            inputs = {name: evidence.digest((evidence.ROOT / name).read_bytes())
+                for name in ("tests/fixtures/v1-a.json", "tests/fixtures/v1-b.json")}
             report.update({"schema_version": 2, "result": "pass", "gate_status": "partial",
-                "profile": None, "os": "windows", "run_id": "existing-run", "source_inputs": {}})
+                "profile": None, "os": "windows", "run_id": "existing-run", "source_inputs": inputs})
             (work / "evidence.json").write_text(json.dumps(report), encoding="utf-8")
             (root / "registry/R0/unqualified-windows/existing-run").mkdir(parents=True)
             with self.assertRaises(FileExistsError): evidence.export(work, root / "registry")
+
+    def test_changed_fixture_golden_refuses_export(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            work = root / "work"
+            work.mkdir()
+            report = {"schema_version": 2, "result": "pass", "gate_status": "partial",
+                "profile": None, "os": "windows", "run_id": "fixture-drift",
+                "source_inputs": {name: "0" * 64 for name in
+                    ("tests/fixtures/v1-a.json", "tests/fixtures/v1-b.json")}}
+            (work / "evidence.json").write_text(json.dumps(report), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "changed since the run"):
+                evidence.export(work, root / "registry")
 
 
 if __name__ == "__main__": unittest.main()

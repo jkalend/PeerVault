@@ -22,7 +22,7 @@ Start with R0's pinned mature-backend comparison, then a thin adapter for local 
 - Use backend-native maintenance only after the release-plan retention gate. Inspect deletion plans and preserve retained snapshots, recovery pins and active capture/restore/transfer roots; uncertain peer/lock/storage state defers deletion. The first slice has no PeerVault GC command.
 - Sync conflicts keep both versions by default. Propagate deletion explicitly with tombstones; an offline or missing peer is not evidence that data can be deleted.
 - Keys, recovery material, and plaintext file content stay out of logs. Recovery and rotation must retain access to older snapshots or state their limits explicitly.
-- Component code lives in `../Components/`, not in this repository ([D-0012](../../project-planning/decisions/0012-component-repositories.md)); consume packages as pinned dependencies. An adapter that depends on this ecosystem belongs in the consuming superplatform shell.
+- Component code lives in `../../Components/`, not in this repository ([D-0012](../../project-planning/decisions/0012-component-repositories.md)); consume packages as pinned dependencies. An adapter that depends on this ecosystem belongs in the consuming superplatform shell.
 
 
 ## Validation priorities

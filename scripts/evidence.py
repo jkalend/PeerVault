@@ -34,6 +34,13 @@ def encode(value):
     return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
 
+def pinned_input(name, source_inputs):
+    data = read(ROOT / name)
+    if source_inputs.get(name) != digest(data):
+        raise ValueError(f"{name} changed since the run; refusing export")
+    return data
+
+
 def export(work, registry, profile_path=None):
     report_bytes = read(work / "evidence.json")
     report = json.loads(report_bytes)
@@ -46,8 +53,8 @@ def export(work, registry, profile_path=None):
         "profile.json": encode(profile),
         "source-inputs.json": encode(report["source_inputs"]),
         "planning-inputs.json": read(ROOT / "docs/planning-inputs.json"),
-        "fixture-a.json": read(ROOT / "tests/fixtures/v1-a.json"),
-        "fixture-b.json": read(ROOT / "tests/fixtures/v1-b.json"),
+        "fixture-a.json": pinned_input("tests/fixtures/v1-a.json", report["source_inputs"]),
+        "fixture-b.json": pinned_input("tests/fixtures/v1-b.json", report["source_inputs"]),
         "commands.md": read(ROOT / "docs/r0.md"),
     }
     if report["profile"] is not None:

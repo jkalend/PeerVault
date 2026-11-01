@@ -75,7 +75,7 @@ Component libraries live in [`Components/`](../../Components/README.md), one wor
 
 The R0 harness — fixture generation, backend pinning, bounded process execution, media identity and full-read comparison — lives in [`Components/crates/bailiff`](../../Components/crates/bailiff/src/lib.rs) and is consumed as a path dependency. This repository keeps the CLI (`src/main.rs`), the pin document (`backend-lock.json`) and the evidence inputs (`src/pins.rs`) that identify exactly what was tested.
 
-Evidence records the bailiff crate version plus hashes of this repository's own build inputs. The harness no longer reads this repository's files at compile time, so moving it did not silently change what a report attests to.
+The exact Components commit is recorded in [`components-lock.txt`](components-lock.txt); CI checks out that commit and the evidence inputs hash the lock file. Evidence also records the bailiff crate version plus hashes of this repository's own build inputs. The harness no longer reads this repository's files at compile time, so moving it did not silently change what a report attests to.
 
 ## Planned repository layout
 

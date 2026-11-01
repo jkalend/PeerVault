@@ -26,6 +26,10 @@ pub fn source_inputs() -> BTreeMap<&'static str, String> {
             include_bytes!("../rust-toolchain.toml").as_slice(),
         ),
         ("backend-lock.json", BYTES),
+        (
+            "components-lock.txt",
+            include_bytes!("../components-lock.txt").as_slice(),
+        ),
         ("src/main.rs", include_bytes!("main.rs").as_slice()),
         ("src/pins.rs", include_bytes!("pins.rs").as_slice()),
         (

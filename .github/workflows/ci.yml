@@ -30,8 +30,16 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - name: Check out component workspace
-        run: git clone --depth 1 https://github.com/jkalend/Components.git ../Components
+      - name: Check out pinned component workspace
+        run: |
+          $commit = (Get-Content components-lock.txt -Raw).Trim()
+          git clone --no-checkout https://github.com/jkalend/Components.git ../../Components
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git -C ../../Components checkout --detach $commit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $actual = (git -C ../../Components rev-parse HEAD).Trim()
+          if ($actual -ne $commit) { throw "Components commit $actual does not match pinned $commit" }
+          "Components commit: $commit" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
       - name: Install pinned Rust
         run: rustup show
       - name: Formatting
@@ -95,10 +103,14 @@ jobs:
       - name: Package experimental qualification tool
         run: |
           $suffix = if ($IsWindows) { '.exe' } else { '' }
-          New-Item -ItemType Directory dist | Out-Null
+          New-Item -ItemType Directory -Force -Path dist,dist/scripts,dist/tests/fixtures,dist/docs/profiles | Out-Null
           Copy-Item "target/release/peervault$suffix" dist/
-          Copy-Item README.md,backend-lock.json dist/ -ErrorAction Stop
-          Copy-Item docs/r0.md dist/QUALIFICATION.md -ErrorAction Stop
+          Copy-Item README.md,backend-lock.json,components-lock.txt dist/ -ErrorAction Stop
+          Copy-Item QUALIFICATION.md dist/QUALIFICATION.md -ErrorAction Stop
+          Copy-Item docs/r0.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
+          Copy-Item docs/profiles/* dist/docs/profiles/ -ErrorAction Stop
+          Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/evidence.py dist/scripts/ -ErrorAction Stop
+          Copy-Item tests/fixtures/v1-a.json,tests/fixtures/v1-b.json dist/tests/fixtures/ -ErrorAction Stop
           python scripts/package-notices.py dist/THIRD-PARTY-NOTICES.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($IsWindows) {

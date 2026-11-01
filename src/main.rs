@@ -73,7 +73,7 @@ fn main() {
     }
     if let Err(error) = run() {
         eprintln!("peervault: {error:#}");
-        std::process::exit(1);
+        std::process::exit(if process::cancelled() { 130 } else { 1 });
     }
 }
 
