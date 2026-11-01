@@ -65,6 +65,8 @@ pub fn exit_code(error: &anyhow::Error) -> i32 {
 #[derive(Clone, Serialize)]
 pub struct BackendInfo {
     pub path: String,
+    #[serde(skip)]
+    pub executable: PathBuf,
     pub version: String,
     pub executable_sha256: String,
 }
@@ -221,13 +223,14 @@ fn backend(path: &Path) -> Result<BackendInfo> {
         std::env::consts::ARCH == "x86_64",
         "unsupported backend architecture"
     );
-    let (size, sha256) = hash_file(path).context("cannot hash configured backend")?;
+    let executable = std::path::absolute(path).context("cannot resolve backend path")?;
+    let (size, sha256) = hash_file(&executable).context("cannot hash configured backend")?;
     ensure!(size <= 128 * 1024 * 1024, "backend executable is oversized");
     ensure!(
         sha256 == asset.executable_sha256,
         "unapproved backend executable hash; no operation permitted"
     );
-    let mut command = Command::new(path);
+    let mut command = Command::new(&executable);
     command.env_clear();
     for name in ["PATH", "SystemRoot", "WINDIR", "TMP", "TEMP", "TMPDIR"] {
         if let Some(value) = std::env::var_os(name) {
@@ -244,6 +247,7 @@ fn backend(path: &Path) -> Result<BackendInfo> {
     );
     Ok(BackendInfo {
         path: path.display().to_string(),
+        executable,
         version: pin.version,
         executable_sha256: sha256,
     })
@@ -251,7 +255,7 @@ fn backend(path: &Path) -> Result<BackendInfo> {
 
 fn command(backend: &BackendInfo, repository: &Path, credential: &Credential) -> Result<Command> {
     let repository = std::path::absolute(repository).context("cannot resolve repository path")?;
-    let mut command = Command::new(&backend.path);
+    let mut command = Command::new(&backend.executable);
     command.env_clear();
     for name in ["PATH", "SystemRoot", "WINDIR", "TMP", "TEMP", "TMPDIR"] {
         if let Some(value) = std::env::var_os(name) {
