@@ -106,6 +106,7 @@ def main():
     objects = [path for path in (corrupt / "data").rglob("*") if path.is_file()]
     assert objects
     target = max(objects, key=lambda path: path.stat().st_size)
+    target.chmod(0o644)
     with target.open("r+b") as stream:
         stream.truncate(max(1, target.stat().st_size // 2))
     result = run(binary, ["verify", "--repository", str(corrupt), "--backend", backend])
