@@ -96,8 +96,9 @@ binding and custody instructions without embedding secrets:
 .\target\release\peervault.exe recovery-kit verify --kit .peervault-work-v02-kit --repository <surviving-copy> --backend .tools\restic.exe --password-file <separate-secret>
 ```
 
-See [V0.2 limits and drill evidence](docs/v0.2.md). The clean-copy drill is
-author-only and same-host; independent-operator and clean-hardware recovery remain
+See [V0.2 limits and drill evidence](docs/v0.2.md). A network-disabled, read-only
+Ubuntu container now performs the Linux clean recovery; the clean-copy drill is
+still author-only, Windows clean-profile recovery and independent hardware remain
 open.
 
 A V0.3 drill exercises one additive peer copy, source removal, peer full read and

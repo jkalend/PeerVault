@@ -11,7 +11,7 @@ marked passed from source presence, CI definitions or a partial drill.
 |---|---|---|---|
 | R0 | restic 0.19.1 selection, scored Windows/Ubuntu profiles, copy drill, threat/evidence entry artifacts | ADR 0001; four scored runs retained | selection recorded; fault/containment residuals open |
 | V0.1 | init/capture/history/verify/restore, encrypted oracle, contained tar restore | Windows + Ubuntu smoke; two exact restores; CI smoke | local synthetic scope; arbitrary-archive, index/access/disk-full and app consistency open |
-| V0.2 | RecoveryKit generate/verify, author-only copy/source-removal drill | Windows + Ubuntu author-only drills; kit smoke | no independent operator, clean hardware, network isolation or rotation |
+| V0.2 | RecoveryKit generate/verify, author-only drill and fresh network-isolated Linux container recovery | Windows + Ubuntu drills; container full-read/restore; kit smoke | Windows clean profile, independent operator/hardware and rotation remain open |
 | V0.3 | one-peer additive copy record, source removal, peer full read, clean restore | Windows + Ubuntu local-filesystem drills | no authenticated transport/pairing/keyless receiver or independent hardware |
 | V0.4 | backup-only 0.9 decision | ADR 0002 | supported sync intentionally not claimed |
 | V0.5 | read-only retention preview | unit tests + preview smoke; no mutation | no deletion, maintenance, locks, peer roots or GC command |

@@ -299,7 +299,7 @@ pub(crate) fn full_read(
     credential: &Credential,
 ) -> Result<()> {
     let mut command = command(backend, repository, credential)?;
-    command.args(["check", "--read-data"]);
+    command.args(["check", "--read-data", "--no-lock"]);
     run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT).map(|_| ())
 }
 
@@ -309,7 +309,7 @@ pub(crate) fn repository_config(
     credential: &Credential,
 ) -> Result<serde_json::Value> {
     let mut command = command(backend, repository, credential)?;
-    command.args(["cat", "config"]);
+    command.args(["cat", "config", "--no-lock"]);
     let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT)?;
     serde_json::from_str(&output).context("invalid repository config")
 }
@@ -354,7 +354,7 @@ fn snapshots(
     credential: &Credential,
 ) -> Result<Vec<ResticSnapshot>> {
     let mut command = command(backend, repository, credential)?;
-    command.args(["snapshots", "--json"]);
+    command.args(["snapshots", "--json", "--no-lock"]);
     let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT)
         .context("cannot list snapshots; check repository credentials and state")?;
     let snapshots: Vec<ResticSnapshot> =
@@ -676,9 +676,7 @@ pub fn verify(
         );
     }
     let started = Instant::now();
-    let mut command = command(&backend, repository, &credential)?;
-    command.args(["check", "--read-data"]);
-    run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT).context("full-read verification failed")?;
+    full_read(&backend, repository, &credential).context("full-read verification failed")?;
     let report = VerifyReport {
         schema_version: SCHEMA_VERSION,
         result: "pass",
@@ -811,7 +809,7 @@ pub(crate) fn read_manifest(
     manifest_snapshot: &str,
 ) -> Result<SourceManifest> {
     let mut list = command(backend, repository, credential)?;
-    list.args(["ls", "--json", manifest_snapshot]);
+    list.args(["ls", "--json", "--no-lock", manifest_snapshot]);
     let output = run(&mut list, COMMAND_TIMEOUT, OUTPUT_LIMIT)?;
     let mut files = Vec::new();
     for line in output.lines() {
@@ -829,7 +827,7 @@ pub(crate) fn read_manifest(
         "manifest snapshot must contain exactly one manifest.json file"
     );
     let mut dump = command(backend, repository, credential)?;
-    dump.args(["dump", manifest_snapshot, &files[0]]);
+    dump.args(["dump", "--no-lock", manifest_snapshot, &files[0]]);
     let output = run(&mut dump, COMMAND_TIMEOUT, MANIFEST_LIMIT)?;
     let manifest: SourceManifest =
         serde_json::from_str(&output).context("invalid PeerVault tree manifest")?;
@@ -847,7 +845,7 @@ fn extract_snapshot(
 ) -> Result<()> {
     let mut command = command(backend, repository, credential)?;
     command
-        .args(["dump", "--archive", "tar", snapshot, "/"])
+        .args(["dump", "--no-lock", "--archive", "tar", snapshot, "/"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = command
