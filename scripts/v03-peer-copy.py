@@ -22,7 +22,10 @@ def remove_tree(path):
         os.chmod(target, 0o666)
         function(target)
 
-    shutil.rmtree(path, onexc=retry)
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=retry)
+    else:
+        shutil.rmtree(path, onerror=lambda function, target, error: retry(function, target, error))
 
 
 def tree(root):
@@ -58,6 +61,13 @@ def step(record, state, result, detail=None):
     write_record(record["_path"], {key: value for key, value in record.items() if key != "_path"})
 
 
+def require(record, state, result):
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()[:300]
+        step(record, f"{state}-failed", "fail", detail)
+        raise SystemExit(f"{state} failed: {detail}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
@@ -66,7 +76,16 @@ def main():
     parser.add_argument("--peer-root", type=Path, required=True, help="new receiver repository root")
     parser.add_argument("--recovery-root", type=Path, required=True, help="new receiver/recovery root")
     arguments = parser.parse_args()
-    for path in (arguments.source_root, arguments.peer_root, arguments.recovery_root):
+    roots = [
+        arguments.source_root.resolve(),
+        arguments.peer_root.resolve(),
+        arguments.recovery_root.resolve(),
+    ]
+    for left, right in ((0, 1), (0, 2), (1, 2)):
+        if roots[left] == roots[right] or roots[left] in roots[right].parents or roots[right] in roots[left].parents:
+            raise SystemExit("source, peer and recovery roots must be disjoint")
+    arguments.source_root, arguments.peer_root, arguments.recovery_root = roots
+    for path in roots:
         if path.exists():
             raise SystemExit(f"root must be new: {path}")
         path.mkdir(parents=True)
@@ -126,15 +145,15 @@ def main():
 
     peer_repository = arguments.peer_root / "repository"
     result = subprocess.run([backend, "--repo", str(peer_repository), "--no-cache", "init", "--repository-version=2"], capture_output=True, text=True, env=restic_environment)
-    assert result.returncode == 0, result.stderr
+    require(record, "peer-init", result)
     step(record, "transferring", "pass")
     result = subprocess.run(
         [backend, "--repo", str(peer_repository), "--no-cache", "copy", "--from-repo", str(source_repository), "--from-password-file", str(source_secret)],
         capture_output=True, text=True, env=restic_environment,
     )
-    assert result.returncode == 0, result.stderr
+    require(record, "transfer", result)
     config = subprocess.run([backend, "--repo", str(peer_repository), "--no-cache", "cat", "config"], capture_output=True, text=True, env=restic_environment)
-    assert config.returncode == 0, config.stderr
+    require(record, "peer-config", config)
     record["peer_repository_id"] = json.loads(config.stdout)["id"]
     step(record, "transfer-complete", "pass")
 
@@ -144,20 +163,22 @@ def main():
     step(record, "source-absent", "pass")
 
     result = run(binary, ["history", "--repository", str(peer_repository), "--backend", backend, "--password-file", str(peer_secret)], environment)
-    assert result.returncode == 0, result.stderr
+    require(record, "peer-history", result)
     peer_history = json.loads(result.stdout)
     copied = [snapshot for snapshot in peer_history["snapshots"] if snapshot["capture_id"] == capture_id]
     assert len(copied) == 1
     record["peer_snapshot"] = copied[0]["id"]
     record["oracle_manifest"] = copied[0]["oracle_manifest"]
     result = run(binary, ["verify", "--repository", str(peer_repository), "--backend", backend, "--snapshot", copied[0]["id"], "--password-file", str(peer_secret)], environment)
-    assert result.returncode == 0, result.stderr
+    require(record, "full-read", result)
     step(record, "full-read-verified", "pass")
 
     destination = arguments.recovery_root / "restored"
     result = run(binary, ["restore", "--repository", str(peer_repository), "--backend", backend, "--snapshot", copied[0]["id"], "--destination", str(destination), "--password-file", str(peer_secret)], environment)
-    assert result.returncode == 0, result.stderr
-    assert tree(destination) == expected
+    require(record, "clean-restore", result)
+    if tree(destination) != expected:
+        step(record, "clean-restored-failed", "fail", "restored tree mismatch")
+        raise SystemExit("restored tree mismatch")
     step(record, "clean-restored", "pass")
     print(json.dumps({key: value for key, value in record.items() if key != "_path"}, indent=2))
 
