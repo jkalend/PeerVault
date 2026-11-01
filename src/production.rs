@@ -22,6 +22,7 @@ use std::{
 use tar::EntryType;
 
 pub const SCHEMA_VERSION: u32 = 2;
+pub const EXIT_FAILURE: i32 = 3;
 pub const EXIT_INCOMPLETE: i32 = 4;
 
 const MANIFEST_SCHEMA_VERSION: u32 = 1;
@@ -53,6 +54,14 @@ fn failure(code: i32, message: impl Into<String>) -> anyhow::Error {
         code,
         message: message.into(),
     })
+}
+
+pub fn operation_failure(error: anyhow::Error) -> anyhow::Error {
+    if error.downcast_ref::<ExitFailure>().is_some() {
+        error
+    } else {
+        failure(EXIT_FAILURE, format!("{error:#}"))
+    }
 }
 
 pub fn exit_code(error: &anyhow::Error) -> i32 {
@@ -372,7 +381,7 @@ pub fn init(
     command.args(["init", "--repository-version=2"]);
     run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT).context("repository init failed")?;
     let repository = fs::canonicalize(repository)?;
-    Ok(RepositoryProfile {
+    let profile = RepositoryProfile {
         schema_version: SCHEMA_VERSION,
         repository: repository.display().to_string(),
         repository_format: "restic-v2",
@@ -382,7 +391,9 @@ pub fn init(
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs(),
-    })
+    };
+    print_json(&profile)?;
+    Ok(profile)
 }
 
 fn validate_tag(tag: &str) -> Result<()> {
@@ -621,16 +632,20 @@ fn validate_destination(destination: &Path) -> Result<()> {
     ensure!(
         !destination
             .components()
-            .any(|component| matches!(component, Component::ParentDir | Component::CurDir)),
-        "restore destination must not contain . or .. components"
+            .any(|component| matches!(component, Component::ParentDir)),
+        "restore destination must not contain .. components"
     );
-    ensure!(
-        destination.parent().is_some_and(|parent| parent.is_dir()),
-        "restore destination parent does not exist"
-    );
+    let parent = destination
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    ensure!(parent.is_dir(), "restore destination parent does not exist");
     let absolute = std::path::absolute(destination).context("cannot resolve destination")?;
     let mut current = PathBuf::new();
     for component in absolute.components() {
+        if matches!(component, Component::CurDir) {
+            continue;
+        }
         current.push(component.as_os_str());
         if matches!(component, Component::Prefix(_) | Component::RootDir) {
             continue;
@@ -801,6 +816,7 @@ fn extract_tar(reader: impl Read, staging: &Path, manifest: &SourceManifest) -> 
         .collect();
     let mut seen_directories = BTreeSet::new();
     let mut seen_files = BTreeSet::new();
+    let mut directory_modes = Vec::new();
     let mut archive = tar::Archive::new(reader);
     for entry in archive.entries().context("invalid extraction tar")? {
         let mut entry = entry.context("invalid extraction tar entry")?;
@@ -829,7 +845,7 @@ fn extract_tar(reader: impl Read, staging: &Path, manifest: &SourceManifest) -> 
             );
             let target = staging.join(&path);
             fs::create_dir_all(&target).context("cannot create restored directory")?;
-            set_mode(&target, entry.header().mode()?)?;
+            directory_modes.push((target, entry.header().mode()?));
             continue;
         }
         let expected = expected_files
@@ -881,6 +897,16 @@ fn extract_tar(reader: impl Read, staging: &Path, manifest: &SourceManifest) -> 
                 .all(|path| seen_directories.contains(*path)),
         "restore is missing expected directories"
     );
+    directory_modes.sort_by(|left, right| {
+        right
+            .0
+            .components()
+            .count()
+            .cmp(&left.0.components().count())
+    });
+    for (path, mode) in directory_modes {
+        set_mode(&path, mode)?;
+    }
     Ok(())
 }
 
@@ -1145,6 +1171,42 @@ mod tests {
 
     fn digest(data: &[u8]) -> String {
         format!("{:x}", Sha256::digest(data))
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn extraction_defers_directory_modes_until_after_contents() -> Result<()> {
+        let data = b"payload";
+        let mut expected = manifest(&[("locked/file", data.len() as u64, 'x')], &["locked"]);
+        expected.files[0].sha256 = digest(data);
+        let mut builder = tar::Builder::new(Vec::new());
+        let mut directory = tar::Header::new_gnu();
+        directory.set_path("locked")?;
+        directory.set_entry_type(EntryType::Directory);
+        directory.set_size(0);
+        directory.set_mode(0o555);
+        directory.set_cksum();
+        builder.append(&directory, &b""[..])?;
+        let mut file = tar::Header::new_gnu();
+        file.set_path("locked/file")?;
+        file.set_entry_type(EntryType::Regular);
+        file.set_size(data.len() as u64);
+        file.set_mode(0o644);
+        file.set_cksum();
+        builder.append(&file, &data[..])?;
+        let staging = tempfile::tempdir()?;
+        extract_tar(
+            std::io::Cursor::new(builder.into_inner()?),
+            staging.path(),
+            &expected,
+        )?;
+        assert_eq!(fs::read(staging.path().join("locked/file"))?, data);
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(
+            staging.path().join("locked"),
+            fs::Permissions::from_mode(0o755),
+        )?;
+        Ok(())
     }
 
     #[test]
