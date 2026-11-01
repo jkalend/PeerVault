@@ -36,7 +36,11 @@ def main():
     parser.add_argument("--backend", type=Path, required=True)
     parser.add_argument("--root", type=Path, required=True, help="new disposable work root")
     arguments = parser.parse_args()
-    binary, backend, root = str(arguments.binary), str(arguments.backend), arguments.root
+    binary, backend, root = (
+        os.path.abspath(arguments.binary),
+        os.path.abspath(arguments.backend),
+        Path(os.path.abspath(arguments.root)),
+    )
     if root.exists():
         raise SystemExit(f"work root must be new: {root}")
     root.mkdir(parents=True)
@@ -53,6 +57,7 @@ def main():
 
     result = run(binary, ["init", "--repository", str(repository), "--backend", backend])
     assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["schema_version"] == 2
     result = run(binary, ["capture", "--repository", str(repository), "--backend", backend, "--source", str(source), "--tag", "smoke-a"])
     assert result.returncode == 0, result.stderr
     first = json.loads(result.stdout)
@@ -74,9 +79,13 @@ def main():
     result = run(binary, ["verify", "--repository", str(repository), "--backend", backend])
     assert result.returncode == 0, result.stderr
 
-    for index, expected in enumerate((first_tree, second_tree)):
+    known = {snapshot["id"]: snapshot for snapshot in history["snapshots"]}
+    assert first["snapshot_id"] in known and second["snapshot_id"] in known
+    assert known[first["snapshot_id"]]["oracle_manifest"]
+    assert known[second["snapshot_id"]]["oracle_manifest"]
+    for index, (expected, snapshot_id) in enumerate(((first_tree, first["snapshot_id"]), (second_tree, second["snapshot_id"]))):
         destination = root / f"restored-{index}"
-        result = run(binary, ["restore", "--repository", str(repository), "--backend", backend, "--snapshot", history["snapshots"][index]["id"], "--destination", str(destination)])
+        result = run(binary, ["restore", "--repository", str(repository), "--backend", backend, "--snapshot", snapshot_id, "--destination", str(destination)])
         assert result.returncode == 0, result.stderr
         report = json.loads(result.stdout)
         assert report["verification"] == "manifest-hash"
@@ -89,8 +98,19 @@ def main():
     if os.name == "nt":
         (root / "restored-1" / "readonly.bin").chmod(0o666)
 
+    original = os.getcwd()
+    os.chdir(root)
+    try:
+        result = run(binary, ["restore", "--repository", str(repository), "--backend", backend, "--snapshot", second["snapshot_id"], "--destination", "relative-restored"])
+    finally:
+        os.chdir(original)
+    assert result.returncode == 0, result.stderr
+    assert tree(root / "relative-restored") == second_tree
+    if os.name == "nt":
+        (root / "relative-restored" / "readonly.bin").chmod(0o666)
+
     result = run(binary, ["restore", "--repository", str(repository), "--backend", backend, "--snapshot", second["snapshot_id"], "--destination", str(root / "restored-1")])
-    assert result.returncode != 0
+    assert result.returncode == 3
 
     empty = root / "empty-source"
     empty.mkdir()
@@ -99,7 +119,7 @@ def main():
     assert json.loads(result.stdout)["result"] == "empty"
 
     result = run(binary, ["history", "--repository", str(repository), "--backend", backend], password="wrong-password")
-    assert result.returncode != 0
+    assert result.returncode == 3
 
     corrupt = root / "repository-corrupt"
     shutil.copytree(repository, corrupt)
@@ -110,7 +130,7 @@ def main():
     with target.open("r+b") as stream:
         stream.truncate(max(1, target.stat().st_size // 2))
     result = run(binary, ["verify", "--repository", str(corrupt), "--backend", backend])
-    assert result.returncode != 0
+    assert result.returncode == 3
     print("V0.1 smoke passed: two exact restores, oracle, rejection and corruption paths")
 
 

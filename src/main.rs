@@ -242,7 +242,8 @@ fn run() -> Result<()> {
             backend,
             password_file,
         } => {
-            production::init(&repository, &backend, password_file.as_deref())?;
+            production::init(&repository, &backend, password_file.as_deref())
+                .map_err(production::operation_failure)?;
         }
         Commands::Capture {
             repository,
@@ -257,14 +258,16 @@ fn run() -> Result<()> {
                 &source,
                 tag.as_deref(),
                 password_file.as_deref(),
-            )?;
+            )
+            .map_err(production::operation_failure)?;
         }
         Commands::History {
             repository,
             backend,
             password_file,
         } => {
-            production::history(&repository, &backend, password_file.as_deref())?;
+            production::history(&repository, &backend, password_file.as_deref())
+                .map_err(production::operation_failure)?;
         }
         Commands::Verify {
             repository,
@@ -277,7 +280,8 @@ fn run() -> Result<()> {
                 &backend,
                 snapshot.as_deref(),
                 password_file.as_deref(),
-            )?;
+            )
+            .map_err(production::operation_failure)?;
         }
         Commands::Restore {
             repository,
@@ -292,7 +296,8 @@ fn run() -> Result<()> {
                 &snapshot,
                 &destination,
                 password_file.as_deref(),
-            )?;
+            )
+            .map_err(production::operation_failure)?;
         }
         Commands::RecoveryKit { action } => match action {
             RecoveryKitAction::Generate {

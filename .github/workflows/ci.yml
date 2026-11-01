@@ -117,7 +117,7 @@ jobs:
           Copy-Item "target/release/peervault$suffix" dist/
           Copy-Item README.md,backend-lock.json,components-lock.txt dist/ -ErrorAction Stop
           Copy-Item QUALIFICATION.md dist/QUALIFICATION.md -ErrorAction Stop
-          Copy-Item docs/r0.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
+          Copy-Item docs/r0.md,docs/v0.1.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
           Copy-Item docs/profiles/* dist/docs/profiles/ -ErrorAction Stop
           Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/evidence.py,scripts/v01-smoke.py,scripts/v02-kit-smoke.py,scripts/v02-clean-drill.py dist/scripts/ -ErrorAction Stop
           Copy-Item tests/fixtures/v1-a.json,tests/fixtures/v1-b.json dist/tests/fixtures/ -ErrorAction Stop
