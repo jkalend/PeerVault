@@ -2,10 +2,12 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0 implementation.** The Rust fixture/compare/bakeoff
-harness, backend pins and CI definitions exist. Production backup/restore,
-desktop/sync and complete qualification remain open. Each restore report covers
-an exact tested snapshot/profile/drill, not a permanent recoverability guarantee.
+**Status: experimental R0/V0.1 implementation.** The Rust fixture/compare/bakeoff
+harness, backend pins, CI definitions and a V0.1 local capture/history/verify/
+restore adapter against restic exist. Production backup/restore, clean-device
+recovery, desktop/sync and complete qualification remain open. Each restore report
+covers an exact tested snapshot/profile/drill, not a permanent recoverability
+guarantee.
 
 Canonical design: [peervault](https://github.com/jkalend/project-planning/blob/main/projects/peervault.md)
 
@@ -60,6 +62,27 @@ qualify keep-both live-folder sync separately from backup repository copies.
 Ecosystems are separate repositories. This repository owns its implementation, tests, releases, and versioning; superplatforms consume it as a pinned dependency.
 Core use remains local and self-hostable. R0 commands below exercise synthetic
 fixtures only; they are not a production backup interface.
+
+## Experimental V0.1 local capture
+
+The selected restic adapter has separate production commands: `init`, `capture`,
+`history`, `verify` and `restore`. They print schema-v2 JSON reports, refuse
+unapproved binaries, require `PEERVAULT_PASSWORD` or `--password-file`, and only
+restore a whole snapshot into a new empty destination. Restore streams a tar into
+owned staging, validates paths/types/hashes against an encrypted tree oracle, and
+refuses a missing/ambiguous oracle.
+
+```powershell
+$env:PEERVAULT_PASSWORD = '<disposable secret>'
+.\target\release\peervault.exe init --repository .peervault-work-v01-repo --backend .tools\restic.exe
+.\target\release\peervault.exe capture --repository .peervault-work-v01-repo --backend .tools\restic.exe --source .\source --tag demo
+.\target\release\peervault.exe history --repository .peervault-work-v01-repo --backend .tools\restic.exe
+.\target\release\peervault.exe verify --repository .peervault-work-v01-repo --backend .tools\restic.exe
+.\target\release\peervault.exe restore --repository .peervault-work-v01-repo --backend .tools\restic.exe --snapshot <id> --destination .peervault-work-v01-restored
+```
+
+See [V0.1 limits and report fields](docs/v0.1.md). This is not clean-device
+recovery, sync, a supported backup product or arbitrary-archive containment.
 
 ## Components
 

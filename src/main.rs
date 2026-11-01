@@ -4,11 +4,12 @@ use clap::{Parser, Subcommand};
 use std::{fs, path::PathBuf};
 
 mod pins;
+mod production;
 
 #[derive(Parser)]
 #[command(
     version,
-    about = "Experimental PeerVault R0 qualification tools. Synthetic data only."
+    about = "Experimental PeerVault recovery tools. R0 qualification and V0.1 local capture; no supported release claim."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -64,6 +65,64 @@ enum Commands {
         #[arg(long)]
         acknowledge_unknown_media: bool,
     },
+    /// Initialize a new restic repository and print the PeerVault profile.
+    Init {
+        #[arg(long)]
+        repository: PathBuf,
+        /// Configured, checksum-verified restic executable.
+        #[arg(long)]
+        backend: PathBuf,
+        /// File containing the repository password; otherwise PEERVAULT_PASSWORD.
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Capture one local source and its encrypted tree oracle.
+    Capture {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        source: PathBuf,
+        /// Optional stable capture label; never a secret.
+        #[arg(long)]
+        tag: Option<String>,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// List PeerVault captures and whether each has a tree oracle.
+    History {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Full-read verify the repository and optionally assert a snapshot exists.
+    Verify {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        snapshot: Option<String>,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Restore one whole snapshot into a new empty destination.
+    Restore {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        snapshot: String,
+        #[arg(long)]
+        destination: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -72,8 +131,9 @@ fn main() {
         std::process::exit(if process::cancelled() { 130 } else { 1 });
     }
     if let Err(error) = run() {
+        let code = production::exit_code(&error);
         eprintln!("peervault: {error:#}");
-        std::process::exit(if process::cancelled() { 130 } else { 1 });
+        std::process::exit(if process::cancelled() { 130 } else { code });
     }
 }
 
@@ -141,6 +201,63 @@ fn run() -> Result<()> {
             println!(
                 "R0 copy/recovery topology drill passed. See evidence.json; this remains a partial gate."
             );
+        }
+        Commands::Init {
+            repository,
+            backend,
+            password_file,
+        } => {
+            production::init(&repository, &backend, password_file.as_deref())?;
+        }
+        Commands::Capture {
+            repository,
+            backend,
+            source,
+            tag,
+            password_file,
+        } => {
+            production::capture(
+                &repository,
+                &backend,
+                &source,
+                tag.as_deref(),
+                password_file.as_deref(),
+            )?;
+        }
+        Commands::History {
+            repository,
+            backend,
+            password_file,
+        } => {
+            production::history(&repository, &backend, password_file.as_deref())?;
+        }
+        Commands::Verify {
+            repository,
+            backend,
+            snapshot,
+            password_file,
+        } => {
+            production::verify(
+                &repository,
+                &backend,
+                snapshot.as_deref(),
+                password_file.as_deref(),
+            )?;
+        }
+        Commands::Restore {
+            repository,
+            backend,
+            snapshot,
+            destination,
+            password_file,
+        } => {
+            production::restore(
+                &repository,
+                &backend,
+                &snapshot,
+                &destination,
+                password_file.as_deref(),
+            )?;
         }
     }
     Ok(())
