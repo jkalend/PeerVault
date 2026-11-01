@@ -1,12 +1,9 @@
-mod backend;
-mod fixture;
-mod media;
-mod pins;
-mod process;
-
 use anyhow::{Context, Result};
+use bailiff::{backend, fixture, process};
 use clap::{Parser, Subcommand};
 use std::{fs, path::PathBuf};
+
+mod pins;
 
 #[derive(Parser)]
 #[command(
@@ -111,7 +108,13 @@ fn run() -> Result<()> {
             work_dir,
             profile,
         } => {
-            backend::bakeoff(backend, &executable, &work_dir, profile.as_deref())?;
+            backend::bakeoff(
+                backend,
+                &executable,
+                &work_dir,
+                profile.as_deref(),
+                &pins::inputs()?,
+            )?;
             println!(
                 "R0 baseline passed. See evidence.json; remaining qualification gates are listed in docs/r0.md."
             );
@@ -133,6 +136,7 @@ fn run() -> Result<()> {
                 &recovery_dir,
                 profile.as_deref(),
                 acknowledge_unknown_media,
+                &pins::inputs()?,
             )?;
             println!(
                 "R0 copy/recovery topology drill passed. See evidence.json; this remains a partial gate."

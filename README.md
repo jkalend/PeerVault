@@ -54,7 +54,7 @@ qualify keep-both live-folder sync separately from backup repository copies.
 |---|---|
 | Consumers | PersonalMesh |
 | First-slice dependency | One mature backup backend selected and pinned by R0; no unbuilt ecosystem prerequisite |
-| Candidate later integrations | C-CAS, Bailiff, Anchor; versioned contracts and separate qualification required |
+| Dependencies | `bailiff` from the Components workspace (path dependency); C-CAS and Anchor remain later candidates |
 | Product concerns / reuse candidates | Restore, Conflict, KeyRec, GC, Sync |
 
 Ecosystems are separate repositories. This repository owns its implementation, tests, releases, and versioning; superplatforms consume it as a pinned dependency.
@@ -71,32 +71,11 @@ Component libraries live in [`Components/`](../../Components/README.md), one wor
 | `ferry` | Ferry | [spec](../../project-planning/components/ferry.md) |
 | `parapet` | Parapet | [spec](../../project-planning/components/parapet.md) |
 
-### Existing code and the Bailiff boundary
+### Component boundary
 
-The R0 harness in `src/` — fixture generation, backend pinning, full-read comparison and the restore-drill commands — implements the restore-drill and independent-verification surface that [`P-BAILLIFF`](../../project-planning/components/bailiff.md) specifies. It stays in this repository for now: D-0012 rule 7 keeps pre-existing code in place until the component contract exists and a second consumer (CloudMesh, ModGrid, Sentinel) needs it. PeerVault remains Bailiff's first consumer; extracting the harness later is a move against a versioned contract, not a rewrite.
+The R0 harness — fixture generation, backend pinning, bounded process execution, media identity and full-read comparison — lives in [`Components/crates/bailiff`](../../Components/crates/bailiff/src/lib.rs) and is consumed as a path dependency. This repository keeps the CLI (`src/main.rs`), the pin document (`backend-lock.json`) and the evidence inputs (`src/pins.rs`) that identify exactly what was tested.
 
-
-## Experimental R0 build and checks
-
-The repository pins Rust in `rust-toolchain.toml`, dependencies in `Cargo.lock`,
-and comparison-backend archives in `backend-lock.json`. From this repository:
-
-```powershell
-cargo build --locked
-cargo test --locked
-cargo run --locked -- fixture .peervault-work-fixture
-cargo run --locked -- compare .peervault-work-fixture/source .peervault-work-fixture/expected.json
-```
-
-Use a new disposable directory for each run. Follow the [R0 runbook](docs/r0.md)
-for backend installation, independent full-size A/B source checks, smoke profiles
-and append-only evidence export. `copy-drill` additionally copies the snapshot
-history through the candidate's native path to a separately observed physical device,
-removes the source tree/repository, and verifies/restores through a fresh receiver
-profile; it is still same-host synthetic evidence, not clean-device or network
-transport qualification. CP0/CP1 hardening adds approved executable hashes,
-bounded/atomic downloads, owned process trees and complete failure diagnostics.
-Smoke success remains a partial R0 gate; backend selection still requires CP2.
+Evidence records the bailiff crate version plus hashes of this repository's own build inputs. The harness no longer reads this repository's files at compile time, so moving it did not silently change what a report attests to.
 
 ## Planned repository layout
 

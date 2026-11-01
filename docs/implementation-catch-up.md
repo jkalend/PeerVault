@@ -29,8 +29,8 @@ credentials/recovery kits, desktop or scheduled proof jobs.
 | Existing asset | Reuse / observed coverage | Qualification gap |
 |---|---|---|
 | [CLI](../src/main.rs) | Explicit synthetic-only fixture/compare/bakeoff surface | No public adapter/report contract or production commands; do not turn bakeoff into a user backup path |
-| [Fixture generator/comparator](../src/fixture.rs), [golden A](../tests/fixtures/v1-a.json), [golden B](../tests/fixtures/v1-b.json) | Exact xorshift/seed/names/size mutation, sorted SHA-256 manifests, path/type checks, malformed-input unit tests | Independently hash the full generated corpus; golden fixture does not cover live sources, hostile extraction, >4 GiB or many-file workloads |
-| [Backend runner](../src/backend.rs) | Version checks, isolated backend environment, actual repository-vs-snapshot verification label, capture/list/restore, wrong-secret, reconnect and saved-object corruption exercises | No scored copy/containment/profile ADR; fresh local config is not independent-device recovery; native restore accepts self-generated fixtures only |
+| [Fixture generator/comparator (Components crate)](../../Components/crates/bailiff/src/fixture.rs), [golden A](../tests/fixtures/v1-a.json), [golden B](../tests/fixtures/v1-b.json) | Exact xorshift/seed/names/size mutation, sorted SHA-256 manifests, path/type checks, malformed-input unit tests | Independently hash the full generated corpus; golden fixture does not cover live sources, hostile extraction, >4 GiB or many-file workloads |
+| [Backend runner (Components crate)](../../Components/crates/bailiff/src/backend.rs) | Version checks, isolated backend environment, actual repository-vs-snapshot verification label, capture/list/restore, wrong-secret, reconnect and saved-object corruption exercises | No scored copy/containment/profile ADR; fresh local config is not independent-device recovery; native restore accepts self-generated fixtures only |
 | Same runner's process helper | 300 s timeout, 4 MiB output threshold, temp output files, child cleanup and output-withholding tests | Direct child cleanup is not process-tree/cancellation reconciliation; polling spool is not a hard disk bound; no combined RSS/handle budget |
 | [Installer](../scripts/install-backends.py), [backend pins](../backend-lock.json) | Archive SHA-256 verification and named-member extraction | No pin-file-to-runner version coupling or pinned extracted-binary verification; cached/decompressed size caps and atomic failure behavior need explicit checks |
 | [CI](../.github/workflows/ci.yml) | Windows/Linux build/lint/test/bakeoff definitions and experimental packaging | No run evidence inspected; Windows Server runner is not Windows 11 qualification; docs/schema/profile/evidence checks missing; 30-day CI artifacts are not durable gate evidence |
@@ -41,7 +41,9 @@ implementation change may already have supplied it. No source edit is requested
 by this plan. The current runner already labels reports “not full R0
 qualification”; preserve that distinction.
 
-Retained SHA-256 baseline (uppercase hex, exact working-tree bytes):
+Retained SHA-256 baseline (uppercase hex, exact working-tree bytes at review time).
+2026-11-01: the harness moved to `Components/crates/bailiff`; rows below keep the
+pre-extraction paths and describe the reviewed snapshot, not the current tree.
 
 | Input | SHA-256 |
 |---|---|

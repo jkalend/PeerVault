@@ -59,6 +59,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "bailiff"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "command-group",
+ "getrandom",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -330,14 +344,9 @@ name = "peervault"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bailiff",
  "clap",
- "command-group",
  "ctrlc",
- "getrandom",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
 ]
 
 [[package]]
