@@ -9,7 +9,8 @@ passing run evidence. The first CP2 slice is recorded in
 [CP2 copy drill progress](cp2-copy-drill.md); the backend/profile selection is
 recorded in [ADR 0001](adr/0001-r0-backend-selection.md). A V0.1 local
 capture/history/verify/restore adapter exists as experimental source with smoke
-evidence; its production and clean-device gates remain open.
+evidence; a V0.2 RecoveryKit and author-only copy drill exist. Their production,
+independent-operator and clean-hardware gates remain open.
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent

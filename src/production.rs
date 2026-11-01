@@ -26,11 +26,12 @@ pub const EXIT_INCOMPLETE: i32 = 4;
 
 const MANIFEST_SCHEMA_VERSION: u32 = 1;
 const CAPTURE_TAG: &str = "peervault-capture";
+const CAPTURE_ID_TAG_PREFIX: &str = "peervault-capture-id-";
 const MANIFEST_TAG_PREFIX: &str = "peervault-manifest-";
 const HOST_TAG: &str = "peervault";
 const MANIFEST_LIMIT: u64 = 64 * 1024 * 1024;
-const COMMAND_TIMEOUT: Duration = Duration::from_secs(3600);
-const OUTPUT_LIMIT: u64 = 16 * 1024 * 1024;
+pub(crate) const COMMAND_TIMEOUT: Duration = Duration::from_secs(3600);
+pub(crate) const OUTPUT_LIMIT: u64 = 16 * 1024 * 1024;
 const MAX_ENTRIES: usize = 1_000_000;
 const POLICY: &str = r#"{"schema_version":1,"include":["regular-files","directories"],"exclude":["symlinks","reparse-points","special-files"],"case_collisions":"reject","path_encoding":"utf-8","path_syntax":"portable-relative","max_depth":16,"max_path_bytes":1024}"#;
 
@@ -99,6 +100,7 @@ pub struct SourceManifest {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SnapshotRef {
     pub id: String,
+    pub capture_id: Option<String>,
     pub time: String,
     pub hostname: Option<String>,
     pub paths: Vec<String>,
@@ -112,6 +114,7 @@ pub struct CaptureReport {
     pub result: &'static str,
     pub scan: &'static str,
     pub snapshot_id: String,
+    pub capture_id: String,
     pub manifest_snapshot_id: Option<String>,
     pub source: String,
     pub files: usize,
@@ -171,12 +174,12 @@ struct ResticSnapshot {
     tags: Vec<String>,
 }
 
-struct Credential {
+pub(crate) struct Credential {
     file: Option<PathBuf>,
 }
 
 impl Credential {
-    fn new(file: Option<&Path>) -> Result<Self> {
+    pub(crate) fn new(file: Option<&Path>) -> Result<Self> {
         if let Some(file) = file {
             let metadata = fs::metadata(file).context("cannot read password file")?;
             ensure!(metadata.is_file(), "password file must be a regular file");
@@ -205,11 +208,11 @@ impl Credential {
     }
 }
 
-fn policy_sha256() -> String {
+pub(crate) fn policy_sha256() -> String {
     format!("{:x}", Sha256::digest(POLICY.as_bytes()))
 }
 
-fn backend(path: &Path) -> Result<BackendInfo> {
+pub(crate) fn backend(path: &Path) -> Result<BackendInfo> {
     let pins = pins::load()?;
     let pin = pins.restic;
     let asset = match std::env::consts::OS {
@@ -249,7 +252,11 @@ fn backend(path: &Path) -> Result<BackendInfo> {
     })
 }
 
-fn command(backend: &BackendInfo, repository: &Path, credential: &Credential) -> Result<Command> {
+pub(crate) fn command(
+    backend: &BackendInfo,
+    repository: &Path,
+    credential: &Credential,
+) -> Result<Command> {
     let repository = std::path::absolute(repository).context("cannot resolve repository path")?;
     let mut command = Command::new(&backend.path);
     command.env_clear();
@@ -267,10 +274,31 @@ fn command(backend: &BackendInfo, repository: &Path, credential: &Credential) ->
     Ok(command)
 }
 
-fn run(command: &mut Command, timeout: Duration, limit: u64) -> Result<String> {
+pub(crate) fn run(command: &mut Command, timeout: Duration, limit: u64) -> Result<String> {
     let (code, stdout) = bounded(command, timeout, limit)?;
     ensure!(code == Some(0), "backend command exited nonzero");
     Ok(stdout)
+}
+
+pub(crate) fn full_read(
+    backend: &BackendInfo,
+    repository: &Path,
+    credential: &Credential,
+) -> Result<()> {
+    let mut command = command(backend, repository, credential)?;
+    command.args(["check", "--read-data"]);
+    run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT).map(|_| ())
+}
+
+pub(crate) fn repository_config(
+    backend: &BackendInfo,
+    repository: &Path,
+    credential: &Credential,
+) -> Result<serde_json::Value> {
+    let mut command = command(backend, repository, credential)?;
+    command.args(["cat", "config"]);
+    let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT)?;
+    serde_json::from_str(&output).context("invalid repository config")
 }
 
 fn snapshot_id(output: &str) -> Result<String> {
@@ -289,7 +317,7 @@ fn snapshot_id(output: &str) -> Result<String> {
     Ok(id)
 }
 
-fn validate_snapshot_id(id: &str) -> Result<()> {
+pub(crate) fn validate_snapshot_id(id: &str) -> Result<()> {
     ensure!(
         id.len() == 64 && id.bytes().all(|byte| byte.is_ascii_hexdigit()),
         "invalid snapshot ID"
@@ -314,28 +342,50 @@ fn snapshots(
     Ok(snapshots)
 }
 
-fn manifest_tag(data_id: &str) -> String {
-    format!("{MANIFEST_TAG_PREFIX}{data_id}")
+fn manifest_tag(capture_id: &str) -> String {
+    format!("{MANIFEST_TAG_PREFIX}{capture_id}")
 }
 
-fn find_manifest(
+fn capture_id(tags: &[String]) -> Option<String> {
+    tags.iter().find_map(|tag| {
+        tag.strip_prefix(CAPTURE_ID_TAG_PREFIX)
+            .filter(|value| validate_capture_id(value).is_ok())
+            .map(str::to_owned)
+    })
+}
+
+fn validate_capture_id(id: &str) -> Result<()> {
+    ensure!(
+        matches!(id.len(), 32 | 64) && id.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "invalid capture ID"
+    );
+    Ok(())
+}
+
+pub(crate) fn find_manifest(
     backend: &BackendInfo,
     repository: &Path,
     credential: &Credential,
-    data_id: &str,
-) -> Result<String> {
-    let tag = manifest_tag(data_id);
+    snapshot_id: &str,
+) -> Result<(String, String)> {
+    let snapshots = snapshots(backend, repository, credential)?;
+    let data = snapshots
+        .iter()
+        .find(|snapshot| snapshot.id == snapshot_id)
+        .with_context(|| format!("snapshot {snapshot_id} not found in repository"))?;
+    let capture_id = capture_id(&data.tags).unwrap_or_else(|| snapshot_id.to_owned());
+    let tag = manifest_tag(&capture_id);
     let mut found = Vec::new();
-    for snapshot in snapshots(backend, repository, credential)? {
+    for snapshot in snapshots {
         if snapshot.tags.iter().any(|value| value == &tag) {
             found.push(snapshot.id);
         }
     }
     ensure!(
         found.len() == 1,
-        "expected exactly one PeerVault manifest snapshot for {data_id}"
+        "expected exactly one PeerVault manifest snapshot for {capture_id}"
     );
-    Ok(found.remove(0))
+    Ok((capture_id, found.remove(0)))
 }
 
 pub fn init(
@@ -402,6 +452,7 @@ pub fn capture(
             result: "empty",
             scan: "complete",
             snapshot_id: String::new(),
+            capture_id: String::new(),
             manifest_snapshot_id: None,
             source: source.display().to_string(),
             files: 0,
@@ -421,6 +472,12 @@ pub fn capture(
             "empty source selection; no snapshot created",
         ));
     }
+    let mut capture_bytes = [0u8; 16];
+    getrandom::fill(&mut capture_bytes).context("OS random source unavailable")?;
+    let capture_id: String = capture_bytes
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
     let mut command = command(&backend, repository, &credential)?;
     command.current_dir(source).args([
         "backup",
@@ -429,6 +486,8 @@ pub fn capture(
         HOST_TAG,
         "--tag",
         CAPTURE_TAG,
+        "--tag",
+        &format!("{CAPTURE_ID_TAG_PREFIX}{capture_id}"),
     ]);
     if let Some(tag) = tag {
         validate_tag(tag)?;
@@ -449,6 +508,7 @@ pub fn capture(
         result: if incomplete { "incomplete" } else { "pass" },
         scan,
         snapshot_id: snapshot_id.clone(),
+        capture_id: capture_id.clone(),
         manifest_snapshot_id: None,
         source: source.display().to_string(),
         files: before.files.len(),
@@ -471,7 +531,7 @@ pub fn capture(
         ));
     }
     let manifest_snapshot_id =
-        publish_manifest(&backend, repository, &credential, &before, &snapshot_id)?;
+        publish_manifest(&backend, repository, &credential, &before, &capture_id)?;
     let report = CaptureReport {
         manifest_snapshot_id: Some(manifest_snapshot_id),
         ..report
@@ -485,7 +545,7 @@ fn publish_manifest(
     repository: &Path,
     credential: &Credential,
     manifest: &SourceManifest,
-    data_id: &str,
+    capture_id: &str,
 ) -> Result<String> {
     let temporary = tempfile::tempdir().context("cannot create manifest staging")?;
     let path = temporary.path().join("manifest.json");
@@ -504,7 +564,7 @@ fn publish_manifest(
         "--host",
         HOST_TAG,
         "--tag",
-        &manifest_tag(data_id),
+        &manifest_tag(capture_id),
         "manifest.json",
     ]);
     let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT)
@@ -524,10 +584,10 @@ pub fn history(
     let mut manifests = BTreeMap::new();
     for snapshot in &snapshots {
         for tag in &snapshot.tags {
-            if let Some(data_id) = tag.strip_prefix(MANIFEST_TAG_PREFIX)
-                && validate_snapshot_id(data_id).is_ok()
+            if let Some(capture_id) = tag.strip_prefix(MANIFEST_TAG_PREFIX)
+                && validate_capture_id(capture_id).is_ok()
             {
-                manifests.insert(data_id.to_owned(), snapshot.id.clone());
+                manifests.insert(capture_id.to_owned(), snapshot.id.clone());
             }
         }
     }
@@ -543,13 +603,16 @@ pub fn history(
         if !snapshot.tags.iter().any(|tag| tag == CAPTURE_TAG) {
             continue;
         }
+        let cid = capture_id(&snapshot.tags);
+        let oracle_key = cid.clone().unwrap_or_else(|| snapshot.id.clone());
         refs.push(SnapshotRef {
             id: snapshot.id.clone(),
+            capture_id: cid,
             time: snapshot.time,
             hostname: snapshot.hostname,
             paths: snapshot.paths,
             tags: snapshot.tags,
-            oracle_manifest: manifests.get(&snapshot.id).cloned(),
+            oracle_manifest: manifests.get(&oracle_key).cloned(),
         });
     }
     let report = HistoryReport {
@@ -614,7 +677,7 @@ pub fn restore(
         .context("restore destination needs a parent directory")?;
     ensure!(parent.is_dir(), "restore destination parent does not exist");
     let started = Instant::now();
-    let manifest_snapshot = find_manifest(&backend, repository, &credential, snapshot)?;
+    let (_, manifest_snapshot) = find_manifest(&backend, repository, &credential, snapshot)?;
     let manifest = read_manifest(&backend, repository, &credential, &manifest_snapshot)?;
     let staging = parent.join(format!(
         ".peervault-staging-{}",
@@ -667,7 +730,7 @@ pub fn restore(
     Ok(report)
 }
 
-fn read_manifest(
+pub(crate) fn read_manifest(
     backend: &BackendInfo,
     repository: &Path,
     credential: &Credential,
@@ -855,7 +918,7 @@ fn random_hex() -> Result<String> {
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
-fn tree_sha256(manifest: &SourceManifest) -> String {
+pub(crate) fn tree_sha256(manifest: &SourceManifest) -> String {
     let mut hash = Sha256::new();
     let mut directories: Vec<&String> = manifest.directories.iter().collect();
     directories.sort();
@@ -988,7 +1051,7 @@ fn validate_manifest(manifest: &SourceManifest) -> Result<()> {
     Ok(())
 }
 
-fn print_json(value: &impl Serialize) -> Result<()> {
+pub(crate) fn print_json(value: &impl Serialize) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
 }

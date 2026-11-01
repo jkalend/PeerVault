@@ -2,10 +2,11 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0/V0.1 implementation.** The Rust fixture/compare/bakeoff
-harness, backend pins, CI definitions and a V0.1 local capture/history/verify/
-restore adapter against restic exist. Production backup/restore, clean-device
-recovery, desktop/sync and complete qualification remain open. Each restore report
+**Status: experimental R0/V0.1/V0.2 implementation.** The Rust fixture/compare/
+bakeoff harness, backend pins, CI definitions, a V0.1 local capture/history/verify/
+restore adapter and a V0.2 secret-free RecoveryKit/copy drill exist. Production
+backup/restore, clean-hardware recovery, desktop/sync and complete qualification
+remain open. Each restore report
 covers an exact tested snapshot/profile/drill, not a permanent recoverability
 guarantee.
 
@@ -83,6 +84,20 @@ $env:PEERVAULT_PASSWORD = '<disposable secret>'
 
 See [V0.1 limits and report fields](docs/v0.1.md). This is not clean-device
 recovery, sync, a supported backup product or arbitrary-archive containment.
+
+An experimental V0.2 `recovery-kit` generator/verifier records the snapshot,
+stable capture ID, encrypted oracle, backend acquisition hashes, repository
+binding and custody instructions without embedding secrets:
+
+```powershell
+.\target\release\peervault.exe recovery-kit generate --repository .peervault-work-v01-repo --backend .tools\restic.exe --snapshot <id> --kit .peervault-work-v02-kit
+.\target\release\peervault.exe recovery-kit verify --kit .peervault-work-v02-kit
+.\target\release\peervault.exe recovery-kit verify --kit .peervault-work-v02-kit --repository <surviving-copy> --backend .tools\restic.exe --password-file <separate-secret>
+```
+
+See [V0.2 limits and drill evidence](docs/v0.2.md). The clean-copy drill is
+author-only and same-host; independent-operator and clean-hardware recovery remain
+open.
 
 ## Components
 

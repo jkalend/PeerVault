@@ -20,6 +20,8 @@ scripts/install-backends.py     bounded, checksum-verified backend installer
 scripts/check-fixture.py        independent Python fixture oracle
 scripts/evidence.py             append-only evidence exporter/verifier
 scripts/v01-smoke.py            repeatable V0.1 capture/restore smoke
+scripts/v02-kit-smoke.py        RecoveryKit inventory/full-read smoke
+scripts/v02-clean-drill.py      author-only copy/source-removal/recovery drill
 tests/fixtures/v1-a.json        revision 1 golden
 tests/fixtures/v1-b.json        revision 2 golden
 docs/                           runbook, roadmap, catch-up plan, profiles and planning inputs
@@ -78,6 +80,18 @@ On Windows use `.\peervault.exe` and `.tools\restic.exe`. The script creates a
 new work root, captures two snapshots, restores both exactly, checks the oracle,
 empty selection, wrong password and a truncated repository. It exits nonzero on
 any mismatch.
+
+## Generate and verify a recovery kit
+
+```text
+python scripts/v02-kit-smoke.py --binary ./peervault --backend .tools/restic --root .peervault-work-v02-kit-smoke
+python scripts/v02-clean-drill.py --binary ./peervault --backend .tools/restic --work-root <new-source-root> --copy-root <new-copy-root> --recovery-root <new-recovery-root>
+```
+
+The first checks kit inventory, repository binding, full read, wrong secret and
+tamper refusal. The second is an author-only copy/source-removal/recovery drill
+that needs three new disjoint roots. Neither replaces an independent-operator or
+clean-hardware drill.
 
 ## Run a smoke baseline
 

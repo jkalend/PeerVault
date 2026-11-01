@@ -5,6 +5,7 @@ use std::{fs, path::PathBuf};
 
 mod pins;
 mod production;
+mod recovery_kit;
 
 #[derive(Parser)]
 #[command(
@@ -120,6 +121,40 @@ enum Commands {
         snapshot: String,
         #[arg(long)]
         destination: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Generate or verify a secret-free RecoveryKit v1.
+    RecoveryKit {
+        #[command(subcommand)]
+        action: RecoveryKitAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum RecoveryKitAction {
+    /// Generate a kit for one committed snapshot and its encrypted oracle.
+    Generate {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        snapshot: String,
+        /// New kit directory.
+        #[arg(long)]
+        kit: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Verify the kit inventory, and optionally the repository binding and full read.
+    Verify {
+        #[arg(long)]
+        kit: PathBuf,
+        #[arg(long)]
+        repository: Option<PathBuf>,
+        #[arg(long)]
+        backend: Option<PathBuf>,
         #[arg(long)]
         password_file: Option<PathBuf>,
     },
@@ -259,6 +294,36 @@ fn run() -> Result<()> {
                 password_file.as_deref(),
             )?;
         }
+        Commands::RecoveryKit { action } => match action {
+            RecoveryKitAction::Generate {
+                repository,
+                backend,
+                snapshot,
+                kit,
+                password_file,
+            } => {
+                recovery_kit::generate(
+                    &repository,
+                    &backend,
+                    &snapshot,
+                    &kit,
+                    password_file.as_deref(),
+                )?;
+            }
+            RecoveryKitAction::Verify {
+                kit,
+                repository,
+                backend,
+                password_file,
+            } => {
+                recovery_kit::verify(
+                    &kit,
+                    repository.as_deref(),
+                    backend.as_deref(),
+                    password_file.as_deref(),
+                )?;
+            }
+        },
     }
     Ok(())
 }
