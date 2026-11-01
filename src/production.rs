@@ -15,7 +15,7 @@ use std::{
     fmt,
     fs::{self, OpenOptions},
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -594,6 +594,46 @@ pub fn verify(
     Ok(report)
 }
 
+fn validate_destination(destination: &Path) -> Result<()> {
+    ensure!(
+        !destination.try_exists()?,
+        "restore destination must not exist"
+    );
+    ensure!(
+        !destination
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::CurDir)),
+        "restore destination must not contain . or .. components"
+    );
+    ensure!(
+        destination.parent().is_some_and(|parent| parent.is_dir()),
+        "restore destination parent does not exist"
+    );
+    let absolute = std::path::absolute(destination).context("cannot resolve destination")?;
+    let mut current = PathBuf::new();
+    for component in absolute.components() {
+        current.push(component.as_os_str());
+        if matches!(component, Component::Prefix(_) | Component::RootDir) {
+            continue;
+        }
+        if let Ok(metadata) = fs::symlink_metadata(&current) {
+            ensure!(
+                !metadata.file_type().is_symlink(),
+                "restore destination contains a symbolic link"
+            );
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::MetadataExt;
+                ensure!(
+                    metadata.file_attributes() & 0x400 == 0,
+                    "restore destination contains a reparse point"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn restore(
     repository: &Path,
     backend_path: &Path,
@@ -605,14 +645,10 @@ pub fn restore(
     let credential = Credential::new(password_file)?;
     ensure!(repository.is_dir(), "repository does not exist");
     validate_snapshot_id(snapshot)?;
-    ensure!(
-        !destination.try_exists()?,
-        "restore destination must not exist"
-    );
+    validate_destination(destination)?;
     let parent = destination
         .parent()
         .context("restore destination needs a parent directory")?;
-    ensure!(parent.is_dir(), "restore destination parent does not exist");
     let started = Instant::now();
     let manifest_snapshot = find_manifest(&backend, repository, &credential, snapshot)?;
     let manifest = read_manifest(&backend, repository, &credential, &manifest_snapshot)?;
@@ -1028,6 +1064,21 @@ mod tests {
         right.directories.reverse();
         right.files.reverse();
         assert_eq!(tree_sha256(&left), tree_sha256(&right));
+    }
+
+    #[test]
+    fn destination_rejects_links_existing_paths_and_traversal() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let existing = temporary.path().join("existing");
+        fs::create_dir(&existing)?;
+        assert!(validate_destination(&existing).is_err());
+        assert!(validate_destination(&temporary.path().join("sub/../new")).is_err());
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(temporary.path(), temporary.path().join("link"))?;
+            assert!(validate_destination(&temporary.path().join("link/new")).is_err());
+        }
+        Ok(())
     }
 
     #[test]
