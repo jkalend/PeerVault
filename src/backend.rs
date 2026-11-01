@@ -1,13 +1,15 @@
 use crate::{
     fixture::{self, Manifest},
-    pins,
+    media, pins,
     process::{ProcessLimit, bounded},
 };
 use anyhow::{Context, Result, ensure};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -43,6 +45,57 @@ struct Fault {
     original_sha256: String,
     operation: &'static str,
     offset_or_length: u64,
+}
+
+#[derive(Clone, Serialize)]
+struct SnapshotMapping {
+    source_id: String,
+    copy_id: String,
+}
+
+#[derive(Serialize)]
+struct InventorySummary {
+    files: usize,
+    bytes: u64,
+    data_files: usize,
+    data_bytes: u64,
+    digest: String,
+    missing: usize,
+    changed: usize,
+    added: usize,
+    ephemeral_changes: usize,
+}
+
+#[derive(Serialize)]
+struct TopologyEvidence {
+    media: media::MediaSet,
+    transport: &'static str,
+    concurrent_writers: bool,
+    copy_command_ref: &'static str,
+    copy_consistency: &'static str,
+    key_role: &'static str,
+    delete_behavior: &'static str,
+    source_absence: &'static str,
+    snapshot_mapping: Vec<SnapshotMapping>,
+    inventory_before: Option<InventorySummary>,
+    inventory_after: Option<InventorySummary>,
+}
+
+#[derive(Clone)]
+struct Session {
+    root: PathBuf,
+    config: PathBuf,
+    cache: PathBuf,
+}
+
+impl Session {
+    fn new(root: &Path) -> Self {
+        Self {
+            root: root.to_path_buf(),
+            config: root.join("client.config"),
+            cache: root.join("cache"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -90,166 +143,159 @@ struct Evidence {
     restored_files: Vec<usize>,
     steps: Vec<Step>,
     faults: Vec<Fault>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    topology: Option<TopologyEvidence>,
 }
 
 struct Runner {
     kind: Kind,
     executable: PathBuf,
     root: PathBuf,
-    config: PathBuf,
-    cache: PathBuf,
+    session: Session,
+    source: PathBuf,
+    repository: PathBuf,
     password: String,
     evidence: Evidence,
     pending_mutation: bool,
 }
 
-pub fn bakeoff(kind: Kind, executable: &Path, root: &Path, profile: Option<&Path>) -> Result<()> {
-    let mut random = [0u8; 32];
-    let random_result = getrandom::fill(&mut random);
-    let password: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
-    let mut runner = Runner {
-        kind,
-        executable: executable.to_path_buf(),
-        config: root.join("client.config"),
-        cache: root.join("cache"),
-        root: root.to_path_buf(),
-        password,
-        pending_mutation: false,
-        evidence: Evidence {
-            schema_version: 2,
-            harness_version: env!("CARGO_PKG_VERSION"),
-            harness_sha256: String::new(),
-            scope: "R0 synthetic local baseline; not full R0 qualification",
-            result: "fail",
-            gate_status: "unknown",
-            run_id: format!(
-                "r0-{}-{}",
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_nanos(),
-                std::process::id()
-            ),
-            active_phase: "setup".into(),
-            failure_reason: None,
-            profile: None,
-            profile_sha256: None,
-            backend_lock_sha256: pins::digest(),
-            source_inputs: pins::source_inputs(),
-            untested_cases: vec![
-                "scored Windows11/Ubuntu24 profiles",
-                "independent copy/key recovery",
-                "hostile restore containment",
-                "phase-targeted crash and power loss",
-                "index recovery, disk full and denied access",
-                "Kopia clock/storage stress",
-            ],
-            backend: kind,
-            backend_version: String::new(),
-            executable_sha256: String::new(),
-            os: std::env::consts::OS,
-            arch: std::env::consts::ARCH,
-            started_unix_seconds: SystemTime::now()
+fn base_evidence(kind: Kind, scope: &'static str) -> Evidence {
+    Evidence {
+        schema_version: 3,
+        harness_version: env!("CARGO_PKG_VERSION"),
+        harness_sha256: String::new(),
+        scope,
+        result: "fail",
+        gate_status: "unknown",
+        run_id: format!(
+            "r0-{}-{}",
+            SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_secs(),
-            clock_quality: "unmeasured; wall clock is informational only",
-            verification_scope: match kind {
-                Kind::Restic => "repository",
-                Kind::Kopia => "snapshot",
-            },
-            command_timeout_seconds: TIMEOUT.as_secs(),
-            output_limit_bytes_per_stream: OUTPUT_LIMIT,
-            fixture_manifest_sha256: vec![],
-            snapshots: vec![],
-            repository_bytes: vec![],
-            restored_files: vec![],
-            steps: vec![],
-            faults: vec![],
+                .as_nanos(),
+            std::process::id()
+        ),
+        active_phase: "setup".into(),
+        failure_reason: None,
+        profile: None,
+        profile_sha256: None,
+        backend_lock_sha256: pins::digest(),
+        source_inputs: pins::source_inputs(),
+        untested_cases: vec![
+            "scored Windows11/Ubuntu24 profiles",
+            "independent copy/key recovery",
+            "hostile restore containment",
+            "phase-targeted crash and power loss",
+            "index recovery, disk full and denied access",
+            "Kopia clock/storage stress",
+        ],
+        backend: kind,
+        backend_version: String::new(),
+        executable_sha256: String::new(),
+        os: std::env::consts::OS,
+        arch: std::env::consts::ARCH,
+        started_unix_seconds: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+        clock_quality: "unmeasured; wall clock is informational only",
+        verification_scope: match kind {
+            Kind::Restic => "repository",
+            Kind::Kopia => "snapshot",
         },
+        command_timeout_seconds: TIMEOUT.as_secs(),
+        output_limit_bytes_per_stream: OUTPUT_LIMIT,
+        fixture_manifest_sha256: vec![],
+        snapshots: vec![],
+        repository_bytes: vec![],
+        restored_files: vec![],
+        steps: vec![],
+        faults: vec![],
+        topology: None,
+    }
+}
+
+fn setup(runner: &mut Runner, profile: Option<&Path>) -> Result<()> {
+    runner.phase("profile");
+    if let Some(profile) = profile {
+        let mut bytes = Vec::new();
+        File::open(profile)?.take(65537).read_to_end(&mut bytes)?;
+        ensure!(bytes.len() <= 65536, "profile too large");
+        let selected: Profile = serde_json::from_slice(&bytes)?;
+        ensure!(
+            selected.schema_version == 1
+                && selected.classification == "smoke"
+                && selected.os == std::env::consts::OS
+                && selected.architecture == std::env::consts::ARCH
+                && !selected.profile_id.is_empty()
+                && selected.revision > 0,
+            "profile version/platform/classification mismatch"
+        );
+        runner.evidence.profile_sha256 = Some(pins::hash_bytes(&bytes));
+        runner.evidence.profile = Some(selected);
+    }
+    runner.phase("binary-pin");
+    let pins = pins::load()?;
+    let pin = match runner.kind {
+        Kind::Restic => pins.restic,
+        Kind::Kopia => pins.kopia,
     };
-    let mut owned_root = false;
-    let result = (|| {
-        fs::create_dir(root)
-            .context("work directory must be new; existing data is never reused")?;
-        owned_root = true;
-        runner.root = backend_path(fs::canonicalize(root)?)?;
-        runner.config = runner.root.join("client.config");
-        runner.cache = runner.root.join("cache");
-        ensure!(random_result.is_ok(), "OS random source unavailable");
-        runner.evidence.harness_sha256 = fixture::hash_file(&std::env::current_exe()?)?.1;
-        runner.phase("profile");
-        if let Some(profile) = profile {
-            let mut bytes = Vec::new();
-            File::open(profile)?.take(65537).read_to_end(&mut bytes)?;
-            ensure!(bytes.len() <= 65536, "profile too large");
-            let selected: Profile = serde_json::from_slice(&bytes)?;
-            ensure!(
-                selected.schema_version == 1
-                    && selected.classification == "smoke"
-                    && selected.os == std::env::consts::OS
-                    && selected.architecture == std::env::consts::ARCH
-                    && !selected.profile_id.is_empty()
-                    && selected.revision > 0,
-                "profile version/platform/classification mismatch"
-            );
-            runner.evidence.profile_sha256 = Some(pins::hash_bytes(&bytes));
-            runner.evidence.profile = Some(selected);
-        }
-        runner.phase("binary-pin");
-        let pins = pins::load()?;
-        let pin = match kind {
-            Kind::Restic => pins.restic,
-            Kind::Kopia => pins.kopia,
-        };
-        runner.evidence.backend_version = pin.version;
-        let asset = match std::env::consts::OS {
-            "windows" => pin.windows,
-            "linux" => pin.linux,
-            _ => anyhow::bail!("unsupported backend platform"),
-        };
-        ensure!(
-            std::env::consts::ARCH == "x86_64",
-            "unsupported backend architecture"
-        );
-        let staged = runner.root.join(if cfg!(windows) {
-            "approved-backend.exe"
-        } else {
-            "approved-backend"
-        });
-        let source = File::open(&runner.executable).context("cannot open configured backend")?;
-        ensure!(
-            source.metadata()?.is_file() && source.metadata()?.len() <= 128 * fixture::MIB,
-            "invalid/oversized backend executable"
-        );
-        let mut output = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&staged)?;
-        let copied = std::io::copy(&mut source.take(128 * fixture::MIB + 1), &mut output)?;
-        ensure!(
-            copied <= 128 * fixture::MIB,
-            "backend executable grew beyond size limit"
-        );
-        output.sync_all()?;
-        drop(output);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&staged, fs::Permissions::from_mode(0o700))?;
-        }
-        runner.evidence.executable_sha256 = fixture::hash_file(&staged)?.1;
-        ensure!(
-            runner.evidence.executable_sha256 == asset.executable_sha256,
-            "unapproved backend executable hash; no execution permitted"
-        );
-        runner.executable = staged;
-        runner.run()
-    })();
+    runner.evidence.backend_version = pin.version;
+    let asset = match std::env::consts::OS {
+        "windows" => pin.windows,
+        "linux" => pin.linux,
+        _ => anyhow::bail!("unsupported backend platform"),
+    };
+    ensure!(
+        std::env::consts::ARCH == "x86_64",
+        "unsupported backend architecture"
+    );
+    let staged = runner.root.join(if cfg!(windows) {
+        "approved-backend.exe"
+    } else {
+        "approved-backend"
+    });
+    let source = File::open(&runner.executable).context("cannot open configured backend")?;
+    ensure!(
+        source.metadata()?.is_file() && source.metadata()?.len() <= 128 * fixture::MIB,
+        "invalid/oversized backend executable"
+    );
+    let mut output = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staged)?;
+    let copied = std::io::copy(&mut source.take(128 * fixture::MIB + 1), &mut output)?;
+    ensure!(
+        copied <= 128 * fixture::MIB,
+        "backend executable grew beyond size limit"
+    );
+    output.sync_all()?;
+    drop(output);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&staged, fs::Permissions::from_mode(0o700))?;
+    }
+    runner.evidence.executable_sha256 = fixture::hash_file(&staged)?.1;
+    ensure!(
+        runner.evidence.executable_sha256 == asset.executable_sha256,
+        "unapproved backend executable hash; no execution permitted"
+    );
+    runner.executable = staged;
+    Ok(())
+}
+
+fn finish(
+    mut runner: Runner,
+    result: Result<()>,
+    root: &Path,
+    owned_root: bool,
+    success_phase: &str,
+) -> Result<()> {
     if result.is_ok() {
         runner.evidence.result = "pass";
         runner.evidence.gate_status = "partial";
-        runner.evidence.active_phase = "baseline-complete".into();
+        runner.evidence.active_phase = success_phase.into();
     } else {
         runner.evidence.gate_status = if runner.pending_mutation {
             "unknown"
@@ -296,11 +342,124 @@ pub fn bakeoff(kind: Kind, executable: &Path, root: &Path, profile: Option<&Path
     saved.context("cannot retain evidence")
 }
 
+pub fn bakeoff(kind: Kind, executable: &Path, root: &Path, profile: Option<&Path>) -> Result<()> {
+    let mut random = [0u8; 32];
+    let random_result = getrandom::fill(&mut random);
+    let password: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+    let mut runner = Runner {
+        kind,
+        executable: executable.to_path_buf(),
+        root: root.to_path_buf(),
+        session: Session::new(root),
+        source: root.join("source"),
+        repository: root.join("repository"),
+        password,
+        pending_mutation: false,
+        evidence: base_evidence(
+            kind,
+            "R0 synthetic local baseline; not full R0 qualification",
+        ),
+    };
+    let mut owned_root = false;
+    let result = (|| {
+        fs::create_dir(root)
+            .context("work directory must be new; existing data is never reused")?;
+        owned_root = true;
+        let canonical = backend_path(fs::canonicalize(root)?)?;
+        runner.source = canonical.join("source");
+        runner.repository = canonical.join("repository");
+        runner.session = Session::new(&canonical);
+        runner.root = canonical;
+        ensure!(random_result.is_ok(), "OS random source unavailable");
+        runner.evidence.harness_sha256 = fixture::hash_file(&std::env::current_exe()?)?.1;
+        setup(&mut runner, profile)?;
+        runner.run()
+    })();
+    finish(runner, result, root, owned_root, "baseline-complete")
+}
+
+pub fn copy_drill(
+    kind: Kind,
+    executable: &Path,
+    work: &Path,
+    copy: &Path,
+    recovery: &Path,
+    profile: Option<&Path>,
+    acknowledge_unknown_media: bool,
+) -> Result<()> {
+    let mut random = [0u8; 32];
+    let random_result = getrandom::fill(&mut random);
+    let password: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
+    let mut runner = Runner {
+        kind,
+        executable: executable.to_path_buf(),
+        root: work.to_path_buf(),
+        session: Session::new(work),
+        source: work.join("source"),
+        repository: work.join("repository-source"),
+        password,
+        pending_mutation: false,
+        evidence: base_evidence(
+            kind,
+            "R0 synthetic copy/recovery topology baseline; not full R0 qualification",
+        ),
+    };
+    runner.evidence.untested_cases = vec![
+        "scored Windows11/Ubuntu24 profiles",
+        "keyless peer topology",
+        "network transport and authenticated pairing",
+        "clean-device/offline recovery and separate secret custody",
+        "hostile restore containment",
+        "phase-targeted crash and power loss",
+        "index recovery, disk full and denied access",
+        "Kopia clock/storage stress",
+        "Ubuntu24/ext4 copy/recovery drill",
+    ];
+    let mut owned_root = false;
+    let result = (|| {
+        fs::create_dir(work)
+            .context("work directory must be new; existing data is never reused")?;
+        owned_root = true;
+        fs::create_dir(copy).context("copy directory must be new")?;
+        fs::create_dir(recovery).context("recovery directory must be new")?;
+        let work = backend_path(fs::canonicalize(work)?)?;
+        let copy = backend_path(fs::canonicalize(copy)?)?;
+        let recovery = backend_path(fs::canonicalize(recovery)?)?;
+        ensure!(
+            copy != work
+                && !copy.starts_with(&work)
+                && !work.starts_with(&copy)
+                && recovery != work
+                && !recovery.starts_with(&work)
+                && !work.starts_with(&recovery)
+                && recovery != copy
+                && !recovery.starts_with(&copy)
+                && !copy.starts_with(&recovery),
+            "source, repository-copy and recovery roots must be disjoint"
+        );
+        runner.root = work.clone();
+        runner.source = work.join("source");
+        runner.repository = work.join("repository-source");
+        runner.session = Session::new(&work);
+        ensure!(random_result.is_ok(), "OS random source unavailable");
+        runner.evidence.harness_sha256 = fixture::hash_file(&std::env::current_exe()?)?.1;
+        setup(&mut runner, profile)?;
+        runner.drill(&copy, &recovery, acknowledge_unknown_media)
+    })();
+    finish(runner, result, work, owned_root, "copy-drill-complete")
+}
+
 impl Runner {
     fn phase(&mut self, name: &str) {
         self.evidence.active_phase = name.into();
     }
-    fn command(&self, args: &[&str], wrong_password: bool) -> Command {
+    fn command(
+        &self,
+        session: &Session,
+        repository: &Path,
+        args: &[&str],
+        wrong_password: bool,
+    ) -> Command {
         let mut command = Command::new(&self.executable);
         // No inherited backend credentials, provider settings, hooks or user config.
         command.env_clear();
@@ -310,14 +469,14 @@ impl Runner {
             }
         }
         command
-            .current_dir(&self.root)
+            .current_dir(&session.root)
             .stdin(Stdio::null())
-            .env("HOME", &self.root)
-            .env("USERPROFILE", &self.root)
-            .env("XDG_CACHE_HOME", self.root.join("xdg-cache"))
-            .env("XDG_CONFIG_HOME", self.root.join("xdg-config"))
-            .env("APPDATA", self.root.join("appdata"))
-            .env("LOCALAPPDATA", self.root.join("localappdata"))
+            .env("HOME", &session.root)
+            .env("USERPROFILE", &session.root)
+            .env("XDG_CACHE_HOME", session.root.join("xdg-cache"))
+            .env("XDG_CONFIG_HOME", session.root.join("xdg-config"))
+            .env("APPDATA", session.root.join("appdata"))
+            .env("LOCALAPPDATA", session.root.join("localappdata"))
             .env("USER", "peervault-fixture")
             .env("USERNAME", "peervault-fixture")
             .env("LANG", "C.UTF-8");
@@ -330,14 +489,14 @@ impl Runner {
             Kind::Restic => {
                 command
                     .arg("--repo")
-                    .arg(self.root.join("repository"))
+                    .arg(repository)
                     .arg("--no-cache")
                     .env("RESTIC_PASSWORD", password);
             }
             Kind::Kopia => {
                 command
                     .arg("--config-file")
-                    .arg(&self.config)
+                    .arg(&session.config)
                     .args([
                         "--no-persist-credentials",
                         "--disable-file-logging",
@@ -346,7 +505,7 @@ impl Runner {
                     ])
                     .env("KOPIA_PASSWORD", password)
                     .env("KOPIA_CHECK_FOR_UPDATES", "false")
-                    .env("KOPIA_CACHE_DIRECTORY", &self.cache);
+                    .env("KOPIA_CACHE_DIRECTORY", &session.cache);
                 #[cfg(windows)]
                 command.arg("--no-use-credential-manager");
                 #[cfg(unix)]
@@ -357,23 +516,51 @@ impl Runner {
         command
     }
 
-    fn execute(
+    fn execute_in(
         &mut self,
+        session: &Session,
+        repository: &Path,
         name: &str,
         args: &[&str],
         success: bool,
         wrong_password: bool,
     ) -> Result<String> {
-        self.phase(name);
-        eprintln!("R0: {name}");
-        let mut command = self.command(args, wrong_password);
-        if args.first() == Some(&"backup") {
-            command.current_dir(self.root.join("source"));
-        }
         let mutation = args.first() == Some(&"backup")
             || args.starts_with(&["snapshot", "create"])
             || args.first() == Some(&"init")
-            || args.starts_with(&["repository", "create"]);
+            || args.starts_with(&["repository", "create"])
+            || args.starts_with(&["repository", "sync-to"]);
+        self.execute_flagged(
+            session,
+            repository,
+            name,
+            args,
+            success,
+            wrong_password,
+            mutation,
+        )
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "explicit session, repository, command, outcome and mutation flags"
+    )]
+    fn execute_flagged(
+        &mut self,
+        session: &Session,
+        repository: &Path,
+        name: &str,
+        args: &[&str],
+        success: bool,
+        wrong_password: bool,
+        mutation: bool,
+    ) -> Result<String> {
+        self.phase(name);
+        eprintln!("R0: {name}");
+        let mut command = self.command(session, repository, args, wrong_password);
+        if args.first() == Some(&"backup") {
+            command.current_dir(&self.source);
+        }
         if mutation {
             self.pending_mutation = true;
         }
@@ -420,6 +607,18 @@ impl Runner {
         Ok(stdout)
     }
 
+    fn execute(
+        &mut self,
+        name: &str,
+        args: &[&str],
+        success: bool,
+        wrong_password: bool,
+    ) -> Result<String> {
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        self.execute_in(&session, &repository, name, args, success, wrong_password)
+    }
+
     fn run(&mut self) -> Result<()> {
         let version_args = match self.kind {
             Kind::Restic => vec!["version"],
@@ -435,7 +634,7 @@ impl Runner {
             "unsupported backend version"
         );
         self.phase("fixture-a");
-        let source = self.root.join("source");
+        let source = self.source.clone();
         let first = fixture::generate(&source, false)?;
         self.oracle(1, &first)?;
         match self.kind {
@@ -443,7 +642,7 @@ impl Runner {
                 self.execute("init", &["init", "--repository-version=2"], true, false)?;
             }
             Kind::Kopia => {
-                let repo = self.root.join("repository");
+                let repo = self.repository.clone();
                 self.execute(
                     "init",
                     &[
@@ -535,7 +734,7 @@ impl Runner {
                 "--json".into(),
                 "--fail-fast".into(),
                 "--force-hash=100".into(),
-                self.root.join("source").to_string_lossy().into_owned(),
+                self.source.to_string_lossy().into_owned(),
             ],
         }
     }
@@ -554,17 +753,37 @@ impl Runner {
     }
 
     fn list(&mut self) -> Result<String> {
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        self.list_in(&session, &repository, "history")
+    }
+
+    fn list_in(&mut self, session: &Session, repository: &Path, name: &str) -> Result<String> {
         let args = match self.kind {
             Kind::Restic => vec!["snapshots", "--json"],
             Kind::Kopia => vec!["snapshot", "list", "--json", "--all"],
         };
-        self.execute("history", &args, true, false)
+        self.execute_in(session, repository, name, &args, true, false)
     }
 
     fn verify(&mut self, id: &str, success: bool) -> Result<()> {
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        self.verify_in(&session, &repository, id, success)
+    }
+
+    fn verify_in(
+        &mut self,
+        session: &Session,
+        repository: &Path,
+        id: &str,
+        success: bool,
+    ) -> Result<()> {
         match self.kind {
             Kind::Restic => {
-                self.execute(
+                self.execute_in(
+                    session,
+                    repository,
                     "repository-full-read",
                     &["check", "--read-data"],
                     success,
@@ -572,7 +791,9 @@ impl Runner {
                 )?;
             }
             Kind::Kopia => {
-                self.execute(
+                self.execute_in(
+                    session,
+                    repository,
                     "snapshot-full-read",
                     &["snapshot", "verify", "--verify-files-percent=100", id],
                     success,
@@ -584,14 +805,31 @@ impl Runner {
     }
 
     fn restore(&mut self, id: &str, name: &str, manifest: &Manifest) -> Result<()> {
-        let destination = self.root.join(name);
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        let root = self.root.clone();
+        self.restore_in(&session, &repository, id, name, manifest, &root)
+    }
+
+    fn restore_in(
+        &mut self,
+        session: &Session,
+        repository: &Path,
+        id: &str,
+        name: &str,
+        manifest: &Manifest,
+        target_root: &Path,
+    ) -> Result<()> {
+        let destination = target_root.join(name);
         ensure!(!destination.try_exists()?, "restore target must be new");
-        let canary = self.root.join("outside-canary");
+        let canary = target_root.join("outside-canary");
         fs::write(&canary, b"outside restore root")?;
         // Only self-generated fixtures enter backend restore. Arbitrary repositories are not accepted.
         match self.kind {
             Kind::Restic => {
-                self.execute(
+                self.execute_in(
+                    session,
+                    repository,
                     name,
                     &[
                         "restore",
@@ -605,7 +843,9 @@ impl Runner {
                 )?;
             }
             Kind::Kopia => {
-                self.execute(
+                self.execute_in(
+                    session,
+                    repository,
                     name,
                     &[
                         "snapshot",
@@ -647,33 +887,40 @@ impl Runner {
         }
         self.evidence
             .repository_bytes
-            .push(total(&self.root.join("repository"))?);
+            .push(total(&self.repository)?);
         Ok(())
     }
 
     fn wrong_password(&mut self) -> Result<()> {
+        let mut session = self.session.clone();
+        let repository = self.repository.clone();
         match self.kind {
             Kind::Restic => {
-                self.execute("wrong-password", &["snapshots", "--json"], false, true)?;
+                self.execute_in(
+                    &session,
+                    &repository,
+                    "wrong-password",
+                    &["snapshots", "--json"],
+                    false,
+                    true,
+                )?;
             }
             Kind::Kopia => {
-                let original = self.config.clone();
-                self.config = self.root.join("wrong-password.config");
-                let repo = self.root.join("repository");
-                let result = self.execute(
+                session.config = self.root.join("wrong-password.config");
+                self.execute_in(
+                    &session,
+                    &repository,
                     "wrong-password",
                     &[
                         "repository",
                         "connect",
                         "filesystem",
                         "--path",
-                        text_path(&repo)?,
+                        text_path(&repository)?,
                     ],
                     false,
                     true,
-                );
-                self.config = original;
-                result?;
+                )?;
             }
         }
         Ok(())
@@ -682,9 +929,9 @@ impl Runner {
     fn reconnect(&mut self) -> Result<()> {
         if matches!(self.kind, Kind::Kopia) {
             let suffix = self.evidence.steps.len();
-            self.config = self.root.join(format!("fresh-{suffix}.config"));
-            self.cache = self.root.join(format!("fresh-cache-{suffix}"));
-            let repo = self.root.join("repository");
+            self.session.config = self.root.join(format!("fresh-{suffix}.config"));
+            self.session.cache = self.root.join(format!("fresh-cache-{suffix}"));
+            let repo = self.repository.clone();
             self.execute(
                 "fresh-client-connect",
                 &[
@@ -708,8 +955,15 @@ impl Runner {
         self.pending_mutation = true;
         eprintln!("R0: timed-process-interruption (not phase-targeted crash qualification)");
         let args = self.snapshot_args();
-        let mut command = self.command(&args.iter().map(String::as_str).collect::<Vec<_>>(), false);
-        command.current_dir(self.root.join("source"));
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        let mut command = self.command(
+            &session,
+            &repository,
+            &args.iter().map(String::as_str).collect::<Vec<_>>(),
+            false,
+        );
+        command.current_dir(&self.source);
         // This is deliberately a startup interruption, not evidence of every commit phase.
         let result = bounded(&mut command, Duration::from_millis(100), OUTPUT_LIMIT);
         ensure!(
@@ -757,7 +1011,7 @@ impl Runner {
             Ok(())
         }
         let mut candidates = vec![];
-        let repository = self.root.join("repository");
+        let repository = self.repository.clone();
         let (path, prefix) = match self.kind {
             Kind::Restic => (repository.join("data"), ""),
             Kind::Kopia => (repository.join("p"), ""),
@@ -772,7 +1026,7 @@ impl Runner {
         fs::copy(&object, &saved)?;
         let original_sha256 = fixture::hash_file(&saved)?.1;
         let object_ref = object
-            .strip_prefix(self.root.join("repository"))?
+            .strip_prefix(&self.repository)?
             .to_string_lossy()
             .replace('\\', "/");
         // restic deliberately writes immutable (0444) pack files. Fault injection
@@ -813,6 +1067,525 @@ impl Runner {
         }
         Ok(())
     }
+
+    fn drill(
+        &mut self,
+        copy_root: &Path,
+        recovery_root: &Path,
+        acknowledge_unknown_media: bool,
+    ) -> Result<()> {
+        self.phase("media-identity");
+        let media = media::guard(
+            &self.root,
+            copy_root,
+            recovery_root,
+            acknowledge_unknown_media,
+        )?;
+        self.evidence.topology = Some(TopologyEvidence {
+            media,
+            transport: "local-filesystem",
+            concurrent_writers: false,
+            copy_command_ref: "r0/repository-copy",
+            copy_consistency: match self.kind {
+                Kind::Restic => {
+                    "quiescent source repository; backend-native copy; receiver repository full read and exact restores"
+                }
+                Kind::Kopia => {
+                    "quiescent source repository; backend-native copy; receiver latest-snapshot full read and exact restores of both revisions"
+                }
+            },
+            key_role: "key-holding receiver; shared disposable password; backend repository keys not separately rotated",
+            delete_behavior: "no delete command; restic copy additive; Kopia sync-to without --delete",
+            source_absence: "not-reached",
+            snapshot_mapping: vec![],
+            inventory_before: None,
+            inventory_after: None,
+        });
+        let version_args = match self.kind {
+            Kind::Restic => vec!["version"],
+            Kind::Kopia => vec!["--version"],
+        };
+        let version = self.execute("version-pin", &version_args, true, false)?;
+        let actual = match self.kind {
+            Kind::Restic => version.split_whitespace().nth(1),
+            Kind::Kopia => version.split_whitespace().next(),
+        };
+        ensure!(
+            actual == Some(self.evidence.backend_version.as_str()),
+            "unsupported backend version"
+        );
+
+        self.phase("fixture-a");
+        let first = fixture::generate(&self.source, false)?;
+        self.oracle(1, &first)?;
+        let session = self.session.clone();
+        let repository = self.repository.clone();
+        self.init_repository(&session, &repository, "source-init")?;
+        let snapshot_a = self.snapshot("snapshot-a")?;
+        self.evidence.snapshots.push(snapshot_a.clone());
+        self.size()?;
+        let snapshot_unchanged = self.snapshot("snapshot-unchanged")?;
+        self.evidence.snapshots.push(snapshot_unchanged);
+        self.size()?;
+
+        self.phase("fixture-b");
+        let second = fixture::mutate(&self.source)?;
+        self.oracle(2, &second)?;
+        let snapshot_b = self.snapshot("snapshot-b")?;
+        ensure!(
+            snapshot_a != snapshot_b,
+            "changed corpus must produce a distinct snapshot"
+        );
+        self.evidence.snapshots.push(snapshot_b.clone());
+        self.size()?;
+        let history = self.list()?;
+        for id in self.evidence.snapshots.clone() {
+            ensure!(
+                history.contains(&id),
+                "committed source snapshot missing from history"
+            );
+        }
+        self.verify(&snapshot_a, true)?;
+
+        self.phase("repository-copy");
+        let copy_repository = copy_root.join("repository");
+        ensure!(
+            !copy_repository.try_exists()?,
+            "copy repository target must not exist"
+        );
+        self.copy_repository(&copy_repository)?;
+        self.pending_mutation = false;
+        let before = repository_inventory(&copy_repository)?;
+        let summary_before = summarize_inventory(self.kind, &before, None)?;
+        if let Some(topology) = self.evidence.topology.as_mut() {
+            topology.inventory_before = Some(summary_before);
+        }
+
+        self.phase("source-absence");
+        fs::remove_dir_all(&self.source)?;
+        fs::remove_dir_all(&self.repository)?;
+        self.remove_writer_state()?;
+        ensure!(
+            !self.source.try_exists()? && !self.repository.try_exists()?,
+            "source material remained after simulated source loss"
+        );
+        if let Some(topology) = self.evidence.topology.as_mut() {
+            topology.source_absence = "source tree, source repository, writer config and cache removed after copy; same-host simulation, not physical disk removal";
+        }
+        self.repository = copy_repository.clone();
+
+        let recovery_session = Session::new(recovery_root);
+        self.phase("receiver-wrong-password");
+        self.wrong_password_in(&recovery_session, &copy_repository)?;
+        self.phase("receiver-fresh-client");
+        self.connect_repository(&recovery_session, &copy_repository, "fresh-client-connect")?;
+        let history = self.list_in(&recovery_session, &copy_repository, "receiver-history")?;
+        let mapping = map_snapshots(self.kind, &self.evidence.snapshots, &history)?;
+        if let Some(topology) = self.evidence.topology.as_mut() {
+            topology.snapshot_mapping = mapping.clone();
+        }
+        let restore_b = mapping
+            .last()
+            .context("no copied snapshot available for receiver restore")?
+            .copy_id
+            .clone();
+        let restore_a = mapping
+            .first()
+            .context("no copied snapshot available for receiver restore")?
+            .copy_id
+            .clone();
+        match self.kind {
+            Kind::Restic => {
+                self.execute_in(
+                    &recovery_session,
+                    &copy_repository,
+                    "receiver-repository-full-read",
+                    &["check", "--read-data"],
+                    true,
+                    false,
+                )?;
+            }
+            Kind::Kopia => {
+                self.execute_in(
+                    &recovery_session,
+                    &copy_repository,
+                    "receiver-snapshot-full-read",
+                    &[
+                        "snapshot",
+                        "verify",
+                        "--verify-files-percent=100",
+                        &restore_b,
+                    ],
+                    true,
+                    false,
+                )?;
+            }
+        }
+        self.restore_in(
+            &recovery_session,
+            &copy_repository,
+            &restore_a,
+            "receiver-restore-a",
+            &first,
+            recovery_root,
+        )?;
+        self.restore_in(
+            &recovery_session,
+            &copy_repository,
+            &restore_b,
+            "receiver-restore-b",
+            &second,
+            recovery_root,
+        )?;
+
+        let after = repository_inventory(&copy_repository)?;
+        let summary_after = summarize_inventory(self.kind, &after, Some(&before))?;
+        let unchanged =
+            summary_after.missing == 0 && summary_after.changed == 0 && summary_after.added == 0;
+        if let Some(topology) = self.evidence.topology.as_mut() {
+            topology.inventory_after = Some(summary_after);
+        }
+        ensure!(
+            unchanged,
+            "receiver access missing/changed/added non-ephemeral repository objects"
+        );
+        Ok(())
+    }
+
+    fn init_repository(&mut self, session: &Session, repository: &Path, name: &str) -> Result<()> {
+        match self.kind {
+            Kind::Restic => {
+                self.execute_in(
+                    session,
+                    repository,
+                    name,
+                    &["init", "--repository-version=2"],
+                    true,
+                    false,
+                )?;
+            }
+            Kind::Kopia => {
+                self.execute_in(
+                    session,
+                    repository,
+                    name,
+                    &[
+                        "repository",
+                        "create",
+                        "filesystem",
+                        "--path",
+                        text_path(repository)?,
+                        "--no-check-for-updates",
+                        "--no-enable-actions",
+                    ],
+                    true,
+                    false,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn copy_repository(&mut self, destination: &Path) -> Result<()> {
+        let session = self.session.clone();
+        match self.kind {
+            Kind::Restic => {
+                self.execute_in(
+                    &session,
+                    destination,
+                    "copy-destination-init",
+                    &["init", "--repository-version=2"],
+                    true,
+                    false,
+                )?;
+                let password_file = self.root.join("copy-source-password");
+                let mut options = OpenOptions::new();
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::OpenOptionsExt;
+                    options.mode(0o600);
+                }
+                let mut file = options.open(&password_file)?;
+                file.write_all(self.password.as_bytes())?;
+                file.sync_all()?;
+                drop(file);
+                let source = text_path(&self.repository)?.to_owned();
+                let password_path = text_path(&password_file)?.to_owned();
+                let result = self.execute_flagged(
+                    &session,
+                    destination,
+                    "repository-copy",
+                    &[
+                        "copy",
+                        "--from-repo",
+                        &source,
+                        "--from-password-file",
+                        &password_path,
+                    ],
+                    true,
+                    false,
+                    true,
+                );
+                let _ = fs::remove_file(&password_file);
+                result?;
+            }
+            Kind::Kopia => {
+                fs::create_dir(destination)?;
+                ensure!(
+                    fs::read_dir(destination)?.next().is_none(),
+                    "copy repository target must be empty"
+                );
+                let destination_text = text_path(destination)?.to_owned();
+                self.execute_flagged(
+                    &session,
+                    &self.repository.clone(),
+                    "repository-copy",
+                    &[
+                        "repository",
+                        "sync-to",
+                        "filesystem",
+                        "--path",
+                        &destination_text,
+                    ],
+                    true,
+                    false,
+                    true,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn wrong_password_in(&mut self, session: &Session, repository: &Path) -> Result<()> {
+        let mut wrong = session.clone();
+        match self.kind {
+            Kind::Restic => {
+                self.execute_in(
+                    session,
+                    repository,
+                    "wrong-password",
+                    &["snapshots", "--json"],
+                    false,
+                    true,
+                )?;
+            }
+            Kind::Kopia => {
+                wrong.config = session.root.join("wrong-password.config");
+                self.execute_in(
+                    &wrong,
+                    repository,
+                    "wrong-password",
+                    &[
+                        "repository",
+                        "connect",
+                        "filesystem",
+                        "--path",
+                        text_path(repository)?,
+                    ],
+                    false,
+                    true,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn connect_repository(
+        &mut self,
+        session: &Session,
+        repository: &Path,
+        name: &str,
+    ) -> Result<()> {
+        if matches!(self.kind, Kind::Kopia) {
+            self.execute_in(
+                session,
+                repository,
+                name,
+                &[
+                    "repository",
+                    "connect",
+                    "filesystem",
+                    "--path",
+                    text_path(repository)?,
+                    "--no-check-for-updates",
+                    "--no-enable-actions",
+                ],
+                true,
+                false,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn remove_writer_state(&self) -> Result<()> {
+        for path in [
+            self.session.config.clone(),
+            self.session.cache.clone(),
+            self.root.join("xdg-cache"),
+            self.root.join("xdg-config"),
+            self.root.join("appdata"),
+            self.root.join("localappdata"),
+            self.root.join("wrong-password.config"),
+        ] {
+            if path.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else if path.try_exists()? {
+                fs::remove_file(&path)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn repository_inventory(root: &Path) -> Result<BTreeMap<String, (u64, String)>> {
+    fn walk(
+        root: &Path,
+        directory: &Path,
+        entries: &mut BTreeMap<String, (u64, String)>,
+    ) -> Result<()> {
+        for item in fs::read_dir(directory)? {
+            let item = item?;
+            let file_type = item.file_type()?;
+            ensure!(!file_type.is_symlink(), "repository inventory found a link");
+            if file_type.is_dir() {
+                walk(root, &item.path(), entries)?;
+            } else if file_type.is_file() {
+                let relative = item
+                    .path()
+                    .strip_prefix(root)?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let (size, digest) = fixture::hash_file(&item.path())?;
+                ensure!(
+                    entries.insert(relative, (size, digest)).is_none(),
+                    "repository inventory found a duplicate path"
+                );
+            }
+        }
+        Ok(())
+    }
+    let mut entries = BTreeMap::new();
+    walk(root, root, &mut entries)?;
+    Ok(entries)
+}
+
+fn is_ephemeral(kind: Kind, path: &str) -> bool {
+    match kind {
+        Kind::Restic => path.starts_with("locks/"),
+        Kind::Kopia => matches!(path, "kopia.maintenance.f" | "kopia.blobcfg.f"),
+    }
+}
+
+fn is_data(kind: Kind, path: &str) -> bool {
+    match kind {
+        Kind::Restic => path.starts_with("data/"),
+        Kind::Kopia => matches!(path.as_bytes().first(), Some(b'p' | b'q')),
+    }
+}
+
+fn summarize_inventory(
+    kind: Kind,
+    current: &BTreeMap<String, (u64, String)>,
+    previous: Option<&BTreeMap<String, (u64, String)>>,
+) -> Result<InventorySummary> {
+    let mut summary = InventorySummary {
+        files: current.len(),
+        bytes: 0,
+        data_files: 0,
+        data_bytes: 0,
+        digest: String::new(),
+        missing: 0,
+        changed: 0,
+        added: 0,
+        ephemeral_changes: 0,
+    };
+    let mut hasher = Sha256::new();
+    for (path, (size, digest)) in current {
+        summary.bytes += size;
+        if is_data(kind, path) {
+            summary.data_files += 1;
+            summary.data_bytes += size;
+        }
+        let ephemeral = is_ephemeral(kind, path);
+        if !ephemeral {
+            hasher.update(path.as_bytes());
+            hasher.update([0]);
+            hasher.update(size.to_le_bytes());
+            hasher.update(digest.as_bytes());
+            hasher.update([0]);
+        }
+        if let Some(previous) = previous {
+            match previous.get(path) {
+                None if ephemeral => summary.ephemeral_changes += 1,
+                None => summary.added += 1,
+                Some((old_size, old_digest)) if old_size != size || old_digest != digest => {
+                    if ephemeral {
+                        summary.ephemeral_changes += 1;
+                    } else {
+                        summary.changed += 1;
+                    }
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    if let Some(previous) = previous {
+        for path in previous.keys() {
+            if !current.contains_key(path) {
+                if is_ephemeral(kind, path) {
+                    summary.ephemeral_changes += 1;
+                } else {
+                    summary.missing += 1;
+                }
+            }
+        }
+    }
+    summary.digest = format!("{:x}", hasher.finalize());
+    Ok(summary)
+}
+
+fn map_snapshots(kind: Kind, source_ids: &[String], output: &str) -> Result<Vec<SnapshotMapping>> {
+    let value: Value = serde_json::from_str(output).context("invalid receiver snapshot JSON")?;
+    let items = value
+        .as_array()
+        .context("receiver snapshot output is not an array")?;
+    ensure!(
+        items.len() == source_ids.len(),
+        "receiver repository has an unexpected snapshot count"
+    );
+    let mut available = BTreeMap::new();
+    for item in items {
+        let id = item["id"]
+            .as_str()
+            .context("receiver snapshot without an ID")?;
+        ensure!(
+            id.len() == 64 || id.len() == 32,
+            "unexpected receiver snapshot ID length"
+        );
+        let source = match kind {
+            Kind::Restic => item["original"]
+                .as_str()
+                .context("restic copy without an original snapshot ID")?,
+            Kind::Kopia => id,
+        };
+        ensure!(
+            available.insert(source.to_owned(), id.to_owned()).is_none(),
+            "receiver snapshot mapping is ambiguous"
+        );
+    }
+    let mut mapping = Vec::new();
+    for source in source_ids {
+        let copy = available
+            .remove(source)
+            .with_context(|| format!("receiver snapshot missing for source {source}"))?;
+        mapping.push(SnapshotMapping {
+            source_id: source.clone(),
+            copy_id: copy,
+        });
+    }
+    ensure!(available.is_empty(), "receiver has unmapped snapshots");
+    Ok(mapping)
 }
 
 fn text_path(path: &Path) -> Result<&str> {
@@ -902,7 +1675,8 @@ mod tests {
         let work = temp.path().join("run");
         assert!(bakeoff(Kind::Restic, &binary, &work, None).is_err());
         let report: Value = serde_json::from_slice(&fs::read(work.join("evidence.json"))?)?;
-        assert_eq!(report["schema_version"], 2);
+        assert_eq!(report["schema_version"], 3);
+        assert!(report.get("topology").is_none());
         assert_eq!(report["result"], "fail");
         assert_eq!(report["active_phase"], "binary-pin");
         assert!(
@@ -941,6 +1715,49 @@ mod tests {
             .unwrap(),
             id
         );
+    }
+
+    #[test]
+    fn receiver_mapping_is_fail_closed() {
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        let c = "c".repeat(64);
+        let restic = format!(
+            "[{{\"id\":\"{b}\",\"original\":\"{a}\"}},{{\"id\":\"{c}\",\"original\":\"{b}\"}}]"
+        );
+        let mapped = map_snapshots(Kind::Restic, &[a.clone(), b.clone()], &restic).unwrap();
+        assert_eq!(mapped[0].copy_id, b);
+        assert_eq!(mapped[1].copy_id, c);
+        assert!(map_snapshots(Kind::Restic, std::slice::from_ref(&a), &restic).is_err());
+        let missing = format!("[{{\"id\":\"{b}\",\"original\":\"{a}\"}}]");
+        assert!(map_snapshots(Kind::Restic, &[a.clone(), b.clone()], &missing).is_err());
+        let kopia = format!("[{{\"id\":\"{a}\"}},{{\"id\":\"{b}\"}}]");
+        let mapped = map_snapshots(Kind::Kopia, &[b.clone(), a.clone()], &kopia).unwrap();
+        assert_eq!(mapped[0].copy_id, b);
+        assert_eq!(mapped[1].copy_id, a);
+        assert!(map_snapshots(Kind::Kopia, &[c], &kopia).is_err());
+    }
+
+    #[test]
+    fn inventory_diff_detects_data_changes_and_allows_ephemerals() -> Result<()> {
+        let mut before = BTreeMap::new();
+        before.insert("data/pack".into(), (3, "a".to_owned()));
+        before.insert("locks/one".into(), (1, "b".to_owned()));
+        let mut after = before.clone();
+        after.insert("data/pack".into(), (3, "c".to_owned()));
+        after.remove("locks/one");
+        after.insert("locks/two".into(), (1, "b".to_owned()));
+        after.insert("index/new".into(), (1, "d".to_owned()));
+        let summary = summarize_inventory(Kind::Restic, &after, Some(&before))?;
+        assert_eq!(summary.changed, 1);
+        assert_eq!(summary.added, 1);
+        assert_eq!(summary.missing, 0);
+        assert_eq!(summary.ephemeral_changes, 2);
+        after.remove("data/pack");
+        let summary = summarize_inventory(Kind::Restic, &after, Some(&before))?;
+        assert_eq!(summary.missing, 1);
+        drop(before);
+        Ok(())
     }
 
     #[test]

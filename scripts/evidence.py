@@ -1,4 +1,4 @@
-"""Map experimental Evidence v2 to append-only EvidenceManifest v1; never import private work state."""
+"""Map experimental Evidence v2/v3 to append-only EvidenceManifest v1; never import private work state."""
 
 import argparse
 import hashlib
@@ -37,7 +37,7 @@ def encode(value):
 def export(work, registry, profile_path=None):
     report_bytes = read(work / "evidence.json")
     report = json.loads(report_bytes)
-    if report["schema_version"] != 2 or report["result"] not in ("pass", "fail") or report["gate_status"] not in ("partial", "fail", "unknown"):
+    if report["schema_version"] not in (2, 3) or report["result"] not in ("pass", "fail") or report["gate_status"] not in ("partial", "fail", "unknown"):
         raise ValueError("unsupported experimental evidence or falsely completed R0")
     profile = report["profile"] or {"schema_version": 1, "profile_id": f"unqualified-{report['os']}", "classification": "smoke", "missing_fields": ["named qualification profile"]}
     run = registry / "R0" / identifier(profile["profile_id"]) / identifier(report["run_id"])
@@ -72,6 +72,7 @@ def export(work, registry, profile_path=None):
         "environment": {key: report[key] for key in ("os", "arch", "clock_quality", "profile_sha256")},
         "budgets": {key: report[key] for key in ("command_timeout_seconds", "output_limit_bytes_per_stream")},
         "assertions": report["steps"], "restored_files": report["restored_files"], "faults": report.get("faults", []),
+        "topology": report.get("topology"),
         "failures": [report["failure_reason"]] if report["failure_reason"] else [],
         "untested_cases": report["untested_cases"], "artifacts": inventory,
         "reviewer": {"status": "unreviewed", "identity": None}, "supersedes": [],

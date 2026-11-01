@@ -86,6 +86,7 @@ pub fn source_inputs() -> std::collections::BTreeMap<&'static str, String> {
         ("backend-lock.json", BYTES),
         ("src/main.rs", include_bytes!("main.rs").as_slice()),
         ("src/fixture.rs", include_bytes!("fixture.rs").as_slice()),
+        ("src/media.rs", include_bytes!("media.rs").as_slice()),
         ("src/backend.rs", include_bytes!("backend.rs").as_slice()),
         ("src/process.rs", include_bytes!("process.rs").as_slice()),
         ("src/pins.rs", include_bytes!("pins.rs").as_slice()),

@@ -1,5 +1,6 @@
 mod backend;
 mod fixture;
+mod media;
 mod pins;
 mod process;
 
@@ -43,6 +44,28 @@ enum Commands {
         /// Named smoke profile. Scored R0 qualification is a separate gate.
         #[arg(long)]
         profile: Option<PathBuf>,
+    },
+    /// Copy snapshots to an independently identified medium, remove the source, and recover through a fresh client.
+    CopyDrill {
+        #[arg(value_enum)]
+        backend: backend::Kind,
+        #[arg(long)]
+        executable: PathBuf,
+        /// New writer root: synthetic source, source repository and writer config.
+        #[arg(long)]
+        work_dir: PathBuf,
+        /// New root for the independently stored repository copy.
+        #[arg(long)]
+        copy_dir: PathBuf,
+        /// New root for the fresh receiver profile and restore targets.
+        #[arg(long)]
+        recovery_dir: PathBuf,
+        /// Named smoke profile. Scored R0 qualification is a separate gate.
+        #[arg(long)]
+        profile: Option<PathBuf>,
+        /// Retain unknown media coverage instead of refusing when identity cannot be observed.
+        #[arg(long)]
+        acknowledge_unknown_media: bool,
     },
 }
 
@@ -91,6 +114,28 @@ fn run() -> Result<()> {
             backend::bakeoff(backend, &executable, &work_dir, profile.as_deref())?;
             println!(
                 "R0 baseline passed. See evidence.json; remaining qualification gates are listed in docs/r0.md."
+            );
+        }
+        Commands::CopyDrill {
+            backend,
+            executable,
+            work_dir,
+            copy_dir,
+            recovery_dir,
+            profile,
+            acknowledge_unknown_media,
+        } => {
+            backend::copy_drill(
+                backend,
+                &executable,
+                &work_dir,
+                &copy_dir,
+                &recovery_dir,
+                profile.as_deref(),
+                acknowledge_unknown_media,
+            )?;
+            println!(
+                "R0 copy/recovery topology drill passed. See evidence.json; this remains a partial gate."
             );
         }
     }

@@ -1,15 +1,19 @@
 # PeerVault implementation and release roadmap
 
-Status: experimental R0 implementation, 2026-10-29. Fixture/compare/bakeoff source,
-backend pins and CI definitions exist; complete R0 and production gates remain
-unqualified. Source presence and CI definitions are not passing run evidence.
+Status: experimental R0 implementation, 2026-10-31. Fixture/compare/bakeoff and
+same-host copy/recovery topology source, backend pins and CI definitions exist;
+complete R0 and production gates remain unqualified. Source presence and CI
+definitions are not passing run evidence. The first CP2 slice is recorded in
+[CP2 copy drill progress](cp2-copy-drill.md); it does not select a backend.
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent
 [DeepSeek/GLM/Kimi review](implementation-plan-review.md) raised 33 more.
 [Catch-up plan and dispositions](implementation-catch-up.md) map every finding to
 the implementation now present. Planning repairs are recorded; code/evidence
-gates remain open. Start CP0/CP1, then complete scored R0 before production V0.1.
+gates remain open. CP0/CP1 harness repairs are recorded in
+[the progress record](cp0-cp1-progress.md); complete CP2/scored R0 before
+production V0.1.
 
 This is the short delivery map. Contracts, fixtures, failure protocols and release
 criteria live in **project-planning**:
@@ -84,6 +88,8 @@ Multi-user collaboration, public sharing and arbitrary live-app consistency need
 new scope decisions. The nine named capability areas are concerns in this product,
 not services to scaffold.
 
-Next action: [CP0/CP1 catch-up](implementation-catch-up.md#cp0--reconcile-the-moving-baseline-and-entry-documentation),
-then scored R0/ADR on disposable data, followed by the V0.1 production adapter.
-Existing harness work is retained; inspect the current worktree before each task.
+Next action: continue CP2 — finish scored profile qualification, then add
+observed-phase faults, index/access/disk-full cases, production containment and
+the license/redistribution matrix before the backend/profile ADR. The local copy
+drill already covers native copy, ID mapping, source absence and receiver restore
+for both candidates on one host; it is partial evidence only.

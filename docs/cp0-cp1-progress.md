@@ -83,6 +83,10 @@ Historical startup kills do not establish every commit phase or power-loss safet
 CP2 still needs both candidates' independent-media copy/key/recovery topology,
 production export/containment, observed-phase/index/access/disk-full/metadata
 faults, storage/clock stress, license/acquisition matrix and a backend decision.
+A later same-host copy/recovery drill is recorded in
+[cp2-copy-drill.md](cp2-copy-drill.md); it is partial evidence, not a backend
+selection, and the original CP2 statement here is retained as the 2026-10-29
+baseline.
 Production schemas/state/reconciliation, peer/retention/sync/desktop and supported
 releases remain in their later capability blocks. No new production scaffold or
 backend selection was added by these repairs.

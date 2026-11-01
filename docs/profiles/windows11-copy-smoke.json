@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "profile_id": "windows11-26200-9168-copy-smoke",
+  "revision": 1,
+  "classification": "smoke",
+  "os": "windows",
+  "architecture": "x86_64",
+  "environment": {
+    "os_caption": "Microsoft Windows 11 Home",
+    "version": "10.0.26200.9168",
+    "display_version": "25H2",
+    "filesystem": "NTFS on all drill roots",
+    "source_directory_case_sensitivity": "not requalified for this drill",
+    "source_media": "local workbench volume; observed physical device hashed in run evidence",
+    "repository_media": "separate local SATA disk; observed physical device hashed in run evidence",
+    "recovery_media": "separate local SATA disk; observed physical device hashed in run evidence",
+    "media_distinctness": "three pairwise-distinct physical devices observed by PowerShell Get-Volume/Get-Disk before any backend launch",
+    "transport": "local filesystem paths; no network transport",
+    "concurrent_writers": "none; source repository quiescent during backend-native copy",
+    "coverage": "same-host synthetic media-separation and source-absence simulation only; not clean-device, offsite or power-loss evidence",
+    "clock_probe": "unmeasured",
+    "locale": "fixture names UTF-8, not normalized"
+  },
+  "missing_fields": [
+    "scored Windows 11 update/build and NTFS geometry/options/ACL qualification",
+    "unhashed raw device/controller labels intentionally excluded from retained evidence",
+    "clock offset/quality probe",
+    "Ubuntu 24.04 LTS / ext4 copy and recovery drill",
+    "keyless peer, network transport, clean device and separate secret custody",
+    "hostile restore containment, observed-phase crash, index recovery, disk full and denied access"
+  ]
+}

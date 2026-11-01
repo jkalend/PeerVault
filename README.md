@@ -61,6 +61,21 @@ Ecosystems are separate repositories. This repository owns its implementation, t
 Core use remains local and self-hostable. R0 commands below exercise synthetic
 fixtures only; they are not a production backup interface.
 
+## Components
+
+Component libraries live in [`Components/`](../../Components/README.md), one workspace package per component ([D-0012](../../project-planning/decisions/0012-component-repositories.md)). This repository consumes them as pinned dependencies and contains no component source.
+
+| Package | Component | Spec |
+|---|---|---|
+| `bailiff` | Bailiff | [spec](../../project-planning/components/bailiff.md) |
+| `ferry` | Ferry | [spec](../../project-planning/components/ferry.md) |
+| `parapet` | Parapet | [spec](../../project-planning/components/parapet.md) |
+
+### Existing code and the Bailiff boundary
+
+The R0 harness in `src/` — fixture generation, backend pinning, full-read comparison and the restore-drill commands — implements the restore-drill and independent-verification surface that [`P-BAILLIFF`](../../project-planning/components/bailiff.md) specifies. It stays in this repository for now: D-0012 rule 7 keeps pre-existing code in place until the component contract exists and a second consumer (CloudMesh, ModGrid, Sentinel) needs it. PeerVault remains Bailiff's first consumer; extracting the harness later is a move against a versioned contract, not a rewrite.
+
+
 ## Experimental R0 build and checks
 
 The repository pins Rust in `rust-toolchain.toml`, dependencies in `Cargo.lock`,
@@ -75,7 +90,11 @@ cargo run --locked -- compare .peervault-work-fixture/source .peervault-work-fix
 
 Use a new disposable directory for each run. Follow the [R0 runbook](docs/r0.md)
 for backend installation, independent full-size A/B source checks, smoke profiles
-and append-only evidence export. CP0/CP1 hardening adds approved executable hashes,
+and append-only evidence export. `copy-drill` additionally copies the snapshot
+history through the candidate's native path to a separately observed physical device,
+removes the source tree/repository, and verifies/restores through a fresh receiver
+profile; it is still same-host synthetic evidence, not clean-device or network
+transport qualification. CP0/CP1 hardening adds approved executable hashes,
 bounded/atomic downloads, owned process trees and complete failure diagnostics.
 Smoke success remains a partial R0 gate; backend selection still requires CP2.
 
