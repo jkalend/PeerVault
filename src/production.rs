@@ -277,20 +277,30 @@ fn run(command: &mut Command, timeout: Duration, limit: u64) -> Result<String> {
     Ok(stdout)
 }
 
-fn snapshot_id(output: &str) -> Result<String> {
-    let mut id = None;
+fn backup_summary(output: &str) -> Result<(String, u64, u64)> {
+    let mut summary = None;
     for line in output.lines() {
         let value: serde_json::Value = match serde_json::from_str(line) {
             Ok(value) => value,
             Err(_) => continue,
         };
         if value["message_type"] == "summary" {
-            id = value["snapshot_id"].as_str().map(str::to_owned);
+            let id = value["snapshot_id"]
+                .as_str()
+                .context("summary lacks a snapshot ID")?
+                .to_owned();
+            let files = value["total_files_processed"]
+                .as_u64()
+                .context("summary lacks a processed-file count")?;
+            let bytes = value["total_bytes_processed"]
+                .as_u64()
+                .context("summary lacks a processed-byte count")?;
+            summary = Some((id, files, bytes));
         }
     }
-    let id = id.context("backend did not return a committed snapshot ID")?;
-    validate_snapshot_id(&id)?;
-    Ok(id)
+    let summary = summary.context("backend did not return a committed snapshot ID")?;
+    validate_snapshot_id(&summary.0)?;
+    Ok(summary)
 }
 
 fn validate_snapshot_id(id: &str) -> Result<()> {
@@ -440,14 +450,17 @@ pub fn capture(
     }
     command.arg(".");
     let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT).context("capture failed")?;
-    let snapshot_id = snapshot_id(&output)?;
+    let (snapshot_id, backend_files, backend_bytes) = backup_summary(&output)?;
     let after = scan_source(source)?;
-    let scan = if before == after {
-        "complete"
-    } else {
+    let expected_bytes: u64 = before.files.iter().map(|entry| entry.size).sum();
+    let scan = if before != after {
         "changed-during-capture"
+    } else if backend_files != before.files.len() as u64 || backend_bytes != expected_bytes {
+        "backend-count-mismatch"
+    } else {
+        "complete"
     };
-    let incomplete = before != after;
+    let incomplete = scan != "complete";
     let report = CaptureReport {
         schema_version: SCHEMA_VERSION,
         result: if incomplete { "incomplete" } else { "pass" },
@@ -457,7 +470,7 @@ pub fn capture(
         source: source.display().to_string(),
         files: before.files.len(),
         directories: before.directories.len(),
-        bytes: before.files.iter().map(|entry| entry.size).sum(),
+        bytes: expected_bytes,
         policy_sha256: before.policy_sha256.clone(),
         backend: backend.clone(),
         elapsed_ms: started.elapsed().as_millis(),
@@ -471,7 +484,7 @@ pub fn capture(
         print_json(&report)?;
         return Err(failure(
             EXIT_INCOMPLETE,
-            "source changed during capture; no PeerVault oracle published",
+            format!("capture scan {scan}; no PeerVault oracle published"),
         ));
     }
     let manifest_snapshot_id =
@@ -513,7 +526,9 @@ fn publish_manifest(
     ]);
     let output = run(&mut command, COMMAND_TIMEOUT, OUTPUT_LIMIT)
         .context("manifest snapshot failed; data snapshot has no PeerVault oracle")?;
-    snapshot_id(&output)
+    let (id, files, bytes) = backup_summary(&output)?;
+    ensure!(files == 1 && bytes > 0, "manifest snapshot was incomplete");
+    Ok(id)
 }
 
 pub fn history(
@@ -821,6 +836,10 @@ fn extract_tar(reader: impl Read, staging: &Path, manifest: &SourceManifest) -> 
             .get(path.as_str())
             .with_context(|| format!("tar contains an unexpected file {path}"))?;
         ensure!(seen_files.insert(path.clone()), "duplicate tar file {path}");
+        ensure!(
+            entry.header().size()? == expected.size,
+            "restored size metadata mismatch for {path}"
+        );
         let target = staging.join(&path);
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
