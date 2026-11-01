@@ -2,10 +2,11 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0/V0.1/V0.2 implementation.** The Rust fixture/compare/
-bakeoff harness, backend pins, CI definitions, a V0.1 local capture/history/verify/
-restore adapter and a V0.2 secret-free RecoveryKit/copy drill exist. Production
-backup/restore, clean-hardware recovery, desktop/sync and complete qualification
+**Status: experimental R0/V0.1/V0.2/V0.3 implementation.** The Rust fixture/
+compare/bakeoff harness, backend pins, CI definitions, a V0.1 local capture/
+history/verify/restore adapter, a V0.2 secret-free RecoveryKit/copy drill and a
+V0.3 one-peer copy-record drill exist. Production backup/restore, authenticated
+peer transport, clean-hardware recovery, desktop/sync and complete qualification
 remain open. Each restore report
 covers an exact tested snapshot/profile/drill, not a permanent recoverability
 guarantee.
@@ -98,6 +99,17 @@ binding and custody instructions without embedding secrets:
 See [V0.2 limits and drill evidence](docs/v0.2.md). The clean-copy drill is
 author-only and same-host; independent-operator and clean-hardware recovery remain
 open.
+
+A V0.3 drill exercises one additive peer copy, source removal, peer full read and
+clean restore with a `PeerCopyRecord v1` state trail:
+
+```text
+python scripts/v03-peer-copy.py --binary ./peervault --backend .tools/restic --source-root <new-source> --peer-root <new-peer> --recovery-root <new-recovery>
+```
+
+The tested transport is a local filesystem. Authenticated network transport,
+pairing, keyless receivers and independent hardware remain open; see
+[V0.3 limits](docs/v0.3.md).
 
 ## Components
 
