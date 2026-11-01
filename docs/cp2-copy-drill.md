@@ -76,12 +76,13 @@ evidence must be read as a guard result, not as a completed profile run.
 
 The same harness was rerun with the scored profiles and retained in
 `project-planning/evidence/peervault/R0/`. All four runs restored both fixture
-revisions exactly and kept the receiver inventory unchanged.
+revisions exactly and left the outside canary unchanged; the two Windows
+`copy-drill` runs also kept the receiver inventory unchanged.
 
 | Run | Backend | Profile | Command | Result | Manifest SHA-256 |
 |---|---|---|---|---|---|
-| `r0-1793503318320016900-45644` | restic | Windows scored | copy-drill | pass / partial | `00850aebe9e0f192822a0a4c359640c6641b014f9c727cb8f8baf778aca5a223` |
-| `r0-1793503353800889600-42804` | Kopia | Windows scored | copy-drill | pass / partial | `7f000610f0063a44ab990fdb91f23b6a64363831ebc527efc926f5584e4ca36c` |
+| `r0-1793503813846092900-11980` | restic | Windows scored | copy-drill | pass / partial | `c42ed38783c57d02f87f9aa9295a37927e1c76b9d406e98bd070b27349b7c1e3` |
+| `r0-1793503839028387000-61928` | Kopia | Windows scored | copy-drill | pass / partial | `ea81832477e819a43a846d9163b0e1371013794a1c72b1209e717a3c26f82e9d` |
 | `r0-1793503456273812386-1480` | restic | Ubuntu scored | bakeoff | pass / partial | `516c3597139cb6626fb0c7a1e2f694fc1a901d7564aba680c2b764b6ad29052e` |
 | `r0-1793503516597910572-1935` | Kopia | Ubuntu scored | bakeoff | pass / partial | `9a4a61c76bfb249ea2ac815455d80abca84b303e041af5fc48c77380e38e145b` |
 

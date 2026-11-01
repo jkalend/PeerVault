@@ -34,3 +34,7 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# CodeRabbit local review output
+.cr-*.txt
+.cr-review-*.txt

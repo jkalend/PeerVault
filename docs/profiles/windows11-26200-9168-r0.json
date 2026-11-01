@@ -13,7 +13,7 @@
     "filesystem": "NTFS",
     "allocation_unit_size": "4096 bytes (Win32_Volume BlockSize)",
     "long_paths": "enabled (HKLM FileSystem LongPathsEnabled=1)",
-    "case_sensitivity": "disabled on C:\\Users\\Petr (fsutil file queryCaseSensitiveInfo)",
+    "case_sensitivity": "disabled on the inspected source directory (fsutil file queryCaseSensitiveInfo); the user-specific path is not retained",
     "acl_class": "inherited SYSTEM/Administrators/owner full control plus S-1-15-3 app capability SID; exact NTFS security descriptor not a fixture oracle",
     "source_volume": "C: Samsung SSD 970 EVO Plus 250GB NVMe, 248359415808 bytes, volume serial 2261375406, block size 4096",
     "repository_volume": "G: ST8000NE001-2M7101 SATA HDD, 8001546088448 bytes, volume serial 3126470964, block size 4096",

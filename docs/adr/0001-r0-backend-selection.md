@@ -24,16 +24,17 @@ Scored profiles:
 
 | Run | Backend | Profile | Result | Verification scope | Manifest SHA-256 |
 |---|---|---|---|---|---|
-| `r0-1793503318320016900-45644` | restic | Windows scored | pass / partial | repository | `00850aebe9e0f192822a0a4c359640c6641b014f9c727cb8f8baf778aca5a223` |
-| `r0-1793503353800889600-42804` | Kopia | Windows scored | pass / partial | snapshot | `7f000610f0063a44ab990fdb91f23b6a64363831ebc527efc926f5584e4ca36c` |
+| `r0-1793503813846092900-11980` | restic | Windows scored | pass / partial | repository | `c42ed38783c57d02f87f9aa9295a37927e1c76b9d406e98bd070b27349b7c1e3` |
+| `r0-1793503839028387000-61928` | Kopia | Windows scored | pass / partial | snapshot | `ea81832477e819a43a846d9163b0e1371013794a1c72b1209e717a3c26f82e9d` |
 | `r0-1793503456273812386-1480` | restic | Ubuntu scored | pass / partial | repository | `516c3597139cb6626fb0c7a1e2f694fc1a901d7564aba680c2b764b6ad29052e` |
 | `r0-1793503516597910572-1935` | Kopia | Ubuntu scored | pass / partial | snapshot | `9a4a61c76bfb249ea2ac815455d80abca84b303e041af5fc48c77380e38e145b` |
 
-All Windows runs used `copy-drill` with source, copy and receiver roots on three
-observed distinct physical devices. All four runs restored both fixture revisions
-exactly, left the outside canary unchanged, and the receiver inventory showed zero
-missing/changed/added non-ephemeral objects. Linux runs used `bakeoff` on the
-pinned ext4 image; their storage is virtual and same-host.
+Both Windows runs used `copy-drill` with source, copy and receiver roots on three
+observed distinct physical devices, and their receiver inventories showed zero
+missing/changed/added non-ephemeral objects. All four runs restored both fixture
+revisions exactly and left the outside canary unchanged. The Ubuntu runs used
+`bakeoff` on the pinned ext4 image and do not create a copied repository or
+receiver inventory; their storage is virtual and same-host.
 
 ## Scoring
 
