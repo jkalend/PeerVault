@@ -1,5 +1,6 @@
 """Install approved R0 executables with bounded reads and atomic replacement (Python 3.10+)."""
 
+import argparse
 import bz2
 import gzip
 import hashlib
@@ -141,6 +142,14 @@ def install(name, pin, system, destination, opener=urllib.request.urlopen):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--destination",
+        type=Path,
+        default=ROOT / ".tools",
+        help="install directory (default: <repo>/.tools)",
+    )
+    arguments = parser.parse_args()
     system = platform.system().lower()
     if platform.machine().lower() not in ("amd64", "x86_64"):
         raise ValueError("only x86-64 backends are pinned")
@@ -148,8 +157,8 @@ def main():
         pins = json.loads(bounded_read(stream, 65536))
     if pins["schema_version"] != 2:
         raise ValueError("unsupported backend pin schema")
-    destination = ROOT / ".tools"
-    destination.mkdir(exist_ok=True)
+    destination = arguments.destination
+    destination.mkdir(parents=True, exist_ok=True)
     for name in ("restic", "kopia"):
         target = install(name, pins[name], system, destination)
         print(f"{name} {pins[name]['version']}: archive and executable SHA-256 verified; {target}")

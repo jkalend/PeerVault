@@ -1,8 +1,10 @@
 # CP2 copy/recovery topology drill — 2026-10-31
 
-This records the first CP2 slice against the current R0 harness. It does not
-select a backend or close CP2/R0. The [catch-up plan](implementation-catch-up.md)
-remains the ordered handoff; [R0 runbook](r0.md) holds commands and limits.
+This records the CP2 copy/recovery slice against the R0 harness. The backend
+selection is recorded separately in [ADR 0001](adr/0001-r0-backend-selection.md);
+the open R0 residuals are listed there and in the
+[catch-up plan](implementation-catch-up.md). [R0 runbook](r0.md) holds commands
+and limits.
 
 ## Implemented
 
@@ -70,14 +72,33 @@ evidence must be read as a guard result, not as a completed profile run.
   ransomware resistance. The disposable password was held in harness memory and
   used for both repositories; separate secret custody and rotation remain CP4.
 
+## Scored R0 runs — 2026-11-01
+
+The same harness was rerun with the scored profiles and retained in
+`project-planning/evidence/peervault/R0/`. All four runs restored both fixture
+revisions exactly and kept the receiver inventory unchanged.
+
+| Run | Backend | Profile | Command | Result | Manifest SHA-256 |
+|---|---|---|---|---|---|
+| `r0-1793503318320016900-45644` | restic | Windows scored | copy-drill | pass / partial | `00850aebe9e0f192822a0a4c359640c6641b014f9c727cb8f8baf778aca5a223` |
+| `r0-1793503353800889600-42804` | Kopia | Windows scored | copy-drill | pass / partial | `7f000610f0063a44ab990fdb91f23b6a64363831ebc527efc926f5584e4ca36c` |
+| `r0-1793503456273812386-1480` | restic | Ubuntu scored | bakeoff | pass / partial | `516c3597139cb6626fb0c7a1e2f694fc1a901d7564aba680c2b764b6ad29052e` |
+| `r0-1793503516597910572-1935` | Kopia | Ubuntu scored | bakeoff | pass / partial | `9a4a61c76bfb249ea2ac815455d80abca84b303e041af5fc48c77380e38e145b` |
+
+Windows runs used three observed distinct physical devices. Ubuntu runs used the
+hash-pinned WSL2 ext4 image and virtual same-host storage, so they do not qualify
+independent media. Both candidates remain partial: containment, phase faults,
+index/access/disk-full and clean-device recovery are open.
+
 ## Still open in CP2
 
-- Scored exact Windows 11/NTFS and Ubuntu 24.04/ext4 profiles (the local copy
-  drill ran under a smoke profile; WSL Ubuntu 22.04 is not the target).
+- Linux copy/recovery drill on independent physical media; the scored Ubuntu
+  profile uses a pinned but virtual same-host ext4 disk.
 - Supported network/keyless/clean-device topology, independent recovery secret
   and source-disk-absent drill on separate hardware.
 - Production export/streaming and contained restore, including hostile entries,
   traversal, link/reparse and target-parent races.
 - Observed-phase crash faults, index loss/rebuild, denied access, disk full,
   metadata/path limits, clock/storage stress and VM power loss.
-- License/redistribution/acquisition matrix and the backend/profile ADR.
+- Full license/redistribution/acquisition matrix for packaging; the
+  backend/profile selection is recorded in the ADR.

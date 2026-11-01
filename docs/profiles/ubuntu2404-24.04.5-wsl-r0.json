@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "profile_id": "ubuntu2404-24.04.5-wsl-r0",
+  "revision": 1,
+  "classification": "scored",
+  "os": "linux",
+  "architecture": "x86_64",
+  "environment": {
+    "distribution": "Ubuntu 24.04.5 LTS (Noble Numbat)",
+    "image_sha256": "bb415d824822c4b878125729af451a5d18fb13d1cf5cbed9a7393ad64ac6039e",
+    "image_source": "https://cdimages.ubuntu.com/ubuntu-wsl/noble/daily-live/current/noble-wsl-amd64.wsl",
+    "image_import": "wsl --import with WSL 3.0.3.0; rootfs tar.gz verified before import",
+    "kernel": "6.18.54.1-microsoft-standard-WSL2",
+    "filesystem": "ext4",
+    "mount_options": "rw,relatime,discard,errors=remount-ro,data=ordered",
+    "block_size": "4096 bytes",
+    "storage_topology": "WSL2 virtual disk (ext4) on C: NVMe; virtual storage on the same host, not independent physical media",
+    "source_media": "same WSL2 ext4 virtual disk for local capture",
+    "repository_media": "same WSL2 ext4 virtual disk for local history; copy drill needs separately mounted roots and records unknown media",
+    "recovery_media": "same WSL2 ext4 virtual disk for fresh-config recovery; not a clean device",
+    "clock_probe": "WSL2 shares the host clock; HTTPS Date median offset -6961.2 ms, RTT 81.6 ms, 3 samples on 2026-11-01; host w32tm not synchronized",
+    "locale": "C.UTF-8; fixture names are literal UTF-8 and not normalized",
+    "cpu_count": "24",
+    "storage_capacity": "1081101176832 bytes available on the ext4 virtual disk",
+    "coverage": "synthetic 256 MiB fixture; local same-host history; no independent physical media, network transport, clean device or power-loss evidence",
+    "python": "3.12.3"
+  },
+  "missing_fields": []
+}

@@ -1,10 +1,13 @@
 # PeerVault implementation and release roadmap
 
-Status: experimental R0 implementation, 2026-10-31. Fixture/compare/bakeoff and
-same-host copy/recovery topology source, backend pins and CI definitions exist;
-complete R0 and production gates remain unqualified. Source presence and CI
-definitions are not passing run evidence. The first CP2 slice is recorded in
-[CP2 copy drill progress](cp2-copy-drill.md); it does not select a backend.
+Status: experimental R0 implementation, 2026-11-01. Fixture/compare/bakeoff and
+same-host copy/recovery topology source, backend pins and CI definitions exist.
+Scored runs and the restic selection are in
+[ADR 0001](adr/0001-r0-backend-selection.md); R0 fault/containment residuals and
+production gates remain unqualified. Source presence and CI definitions are not
+passing run evidence. The first CP2 slice is recorded in
+[CP2 copy drill progress](cp2-copy-drill.md); the backend/profile selection is
+recorded in [ADR 0001](adr/0001-r0-backend-selection.md).
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent
@@ -88,8 +91,9 @@ Multi-user collaboration, public sharing and arbitrary live-app consistency need
 new scope decisions. The nine named capability areas are concerns in this product,
 not services to scaffold.
 
-Next action: continue CP2 — finish scored profile qualification, then add
-observed-phase faults, index/access/disk-full cases, production containment and
-the license/redistribution matrix before the backend/profile ADR. The local copy
-drill already covers native copy, ID mapping, source absence and receiver restore
-for both candidates on one host; it is partial evidence only.
+Next action: implement V0.1 against the selected restic adapter. The remaining
+R0 residuals — observed-phase faults, index/access/disk-full cases, production
+containment, Linux independent-media copy and the full redistribution matrix —
+stay open and tracked in ADR 0001. The local copy drill covers native copy, ID
+mapping, source absence and receiver restore for both candidates on one host; it
+is partial evidence only.

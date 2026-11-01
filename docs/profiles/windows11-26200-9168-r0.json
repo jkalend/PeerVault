@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "profile_id": "windows11-26200-9168-r0",
+  "revision": 1,
+  "classification": "scored",
+  "os": "windows",
+  "architecture": "x86_64",
+  "environment": {
+    "os_caption": "Microsoft Windows 11 Home",
+    "version": "10.0.26200",
+    "build": "26200",
+    "display_version": "25H2",
+    "filesystem": "NTFS",
+    "allocation_unit_size": "4096 bytes (Win32_Volume BlockSize)",
+    "long_paths": "enabled (HKLM FileSystem LongPathsEnabled=1)",
+    "case_sensitivity": "disabled on C:\\Users\\Petr (fsutil file queryCaseSensitiveInfo)",
+    "acl_class": "inherited SYSTEM/Administrators/owner full control plus S-1-15-3 app capability SID; exact NTFS security descriptor not a fixture oracle",
+    "source_volume": "C: Samsung SSD 970 EVO Plus 250GB NVMe, 248359415808 bytes, volume serial 2261375406, block size 4096",
+    "repository_volume": "G: ST8000NE001-2M7101 SATA HDD, 8001546088448 bytes, volume serial 3126470964, block size 4096",
+    "recovery_volume": "F: Samsung SSD 870 EVO 2TB SATA, 2000382062592 bytes, volume serial 975889482, block size 4096",
+    "storage_topology": "C: direct NVMe; G: direct SATA HDD; F: direct SATA SSD; D:/E: Storage Spaces pools are not used by this profile",
+    "clock_probe": "w32tm reports not synchronized with Local CMOS Clock; HTTPS Date median offset -6739.5 ms, RTT 80 ms, 3 samples on 2026-11-01",
+    "locale": "host cs-CZ; backend LANG=C.UTF-8; fixture names are literal UTF-8 and not normalized",
+    "coverage": "synthetic 256 MiB fixture; local same-host history; copy topology uses three separately observed physical devices",
+    "ntfs_detail_limit": "fsutil fsinfo ntfsinfo requires elevation; allocation unit, long-path and case-sensitivity values were observed through non-elevated queries",
+    "python": "3.14.0 host tooling; backend does not use it"
+  },
+  "missing_fields": []
+}
