@@ -113,6 +113,16 @@ peervault retention-preview --repository <repo> --backend .tools/restic --policy
 This is read-only. It never deletes snapshots or runs backend maintenance; see
 [V0.5 limits](docs/v0.5.md).
 
+## Run the V0.6 corpus prerequisite
+
+```text
+python scripts/v06-corpus-smoke.py --binary ./peervault --backend .tools/restic --source-root <new-source-root> --restore-root <new-restore-root>
+```
+
+This creates 5 GiB + 50,000 small files, captures, full-reads and restores them.
+It needs several GiB of free space and takes minutes; it is a prerequisite, not a
+beta qualification. See [corpus evidence](docs/v0.6-corpus.md).
+
 ## Run a smoke baseline
 
 Use a profile that matches the host OS and architecture. The checked-in profiles

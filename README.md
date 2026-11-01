@@ -2,13 +2,12 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0–V0.5 implementation.** The Rust fixture/compare/bakeoff
-harness, backend pins, CI definitions, a V0.1 local capture/history/verify/restore
-adapter, a V0.2 secret-free RecoveryKit/copy drill, a V0.3 one-peer copy-record
-drill, a V0.4 backup-only sync decision and a read-only V0.5 retention preview
-exist. Production backup/restore, authenticated peer transport, clean-hardware
-recovery, deletion/maintenance, desktop/sync and complete qualification remain
-open. Each restore report
+**Status: experimental R0–V0.5 plus a V0.6 corpus prerequisite.** The Rust
+fixture/compare/bakeoff harness, backend pins, CI definitions, a V0.1 local
+capture/history/verify/restore adapter, a V0.2 secret-free RecoveryKit/copy drill,
+a V0.3 one-peer copy-record drill, a V0.4 backup-only sync decision, a read-only
+V0.5 retention preview and a 5 GiB/50k corpus smoke exist. V0.6 beta, V0.8
+desktop, V0.9 measured beta and RC gates remain open. Each restore report
 covers an exact tested snapshot/profile/drill, not a permanent recoverability
 guarantee.
 
@@ -124,6 +123,11 @@ peervault retention-preview --repository <repo> --backend .tools/restic --policy
 ```
 
 See [V0.5 limits](docs/v0.5.md). There is no PeerVault GC command.
+
+The V0.6 corpus prerequisite passed on Windows/NTFS: 50,001 files / 5,375,109,120
+bytes captured, full-read and restored exactly in 664.5 s. It is a prerequisite,
+not a beta qualification; see [corpus evidence](docs/v0.6-corpus.md). RC is not
+reached; the gate matrix is in [RC readiness](docs/rc-readiness.md).
 
 ## Components
 
