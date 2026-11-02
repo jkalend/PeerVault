@@ -99,7 +99,9 @@ binding and custody instructions without embedding secrets:
 See [V0.2 limits and drill evidence](docs/v0.2.md). A network-disabled, read-only
 Ubuntu container now performs the Linux clean recovery; the clean-copy drill is
 still author-only, Windows clean-profile recovery and independent hardware remain
-open.
+open. The experimental Windows clean-client VM harness is documented in
+[Windows clean-client drill](docs/windows-clean-drill.md); it does not close that
+gap.
 
 A V0.3 drill exercises one additive peer copy, source removal, peer full read and
 clean restore with a `PeerCopyRecord v1` state trail:

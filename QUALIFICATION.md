@@ -18,11 +18,13 @@ backend-lock.json               sole version/archive/executable pin source
 components-lock.txt             Components commit used for this build
 scripts/install-backends.py     bounded, checksum-verified backend installer
 scripts/check-fixture.py        independent Python fixture oracle
+scripts/check-windows-imports.py  Windows static-runtime import gate
 scripts/evidence.py             append-only evidence exporter/verifier
 scripts/v01-smoke.py            repeatable V0.1 capture/restore smoke
 scripts/v02-kit-smoke.py        RecoveryKit inventory/full-read smoke
 scripts/v02-clean-drill.py      author-only copy/source-removal/recovery drill
 scripts/v03-peer-copy.py        one-peer additive copy record drill
+scripts/windows/               clean-Windows VM harness and test-media builder
 tests/fixtures/v1-a.json        revision 1 golden
 tests/fixtures/v1-b.json        revision 2 golden
 docs/                           runbook, roadmap, catch-up plan, profiles and planning inputs
@@ -30,7 +32,10 @@ QUALIFICATION.md                this guide
 ```
 
 The backup backends are external and are not bundled. Python 3.10+ is required
-for the scripts; Rust is not needed to use this package.
+for the scripts; Rust is not needed to use this package. Windows binaries are
+built with the static C runtime and must not require a separately installed
+Visual C++ redistributable; `scripts/check-windows-imports.py` is the release
+gate for that property.
 
 The included planning documents are contextual. Links in them to `src/`,
 `.github/`, `Components/` or `project-planning/` refer to the source workspace
@@ -103,6 +108,14 @@ python scripts/v03-peer-copy.py --binary ./peervault --backend .tools/restic --s
 This records `requested` through `clean-restored`, removes the source, full-reads
 the peer and restores exactly. The transport is local filesystem only;
 authenticated network transport and independent hardware remain open.
+
+## Run the Windows clean-client drill
+
+See [docs/windows-clean-drill.md](docs/windows-clean-drill.md) for the media
+layout, unattended answer file, static-runtime import gate and serial result
+contract. The VM must reach the test with no manual OOBE interaction; a visible
+OOBE page is a provisioning failure, not a prompt to click through. This drill is
+experimental clean-VM evidence, not a CP2 or V0.2 gate pass.
 
 ## Preview retention
 

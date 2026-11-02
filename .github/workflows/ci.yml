@@ -54,6 +54,9 @@ jobs:
         run: python scripts/check-docs.py
       - name: Build
         run: cargo build --release --locked
+      - name: Verify Windows recovery binary has no redistributable CRT
+        if: runner.os == 'Windows'
+        run: python scripts/check-windows-imports.py target/release/peervault.exe
       - name: Install checksum-pinned comparison backends
         run: python scripts/install-backends.py
       - name: V0.1 local capture/restore smoke
@@ -122,10 +125,11 @@ jobs:
           Copy-Item "target/release/peervault$suffix" dist/
           Copy-Item README.md,backend-lock.json,components-lock.txt dist/ -ErrorAction Stop
           Copy-Item QUALIFICATION.md dist/QUALIFICATION.md -ErrorAction Stop
-          Copy-Item docs/r0.md,docs/v0.1.md,docs/v0.2.md,docs/v0.3.md,docs/v0.5.md,docs/v0.6-corpus.md,docs/rc-readiness.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
+          Copy-Item docs/r0.md,docs/v0.1.md,docs/v0.2.md,docs/v0.3.md,docs/v0.5.md,docs/v0.6-corpus.md,docs/rc-readiness.md,docs/implementation-catch-up.md,docs/implementation-plan.md,docs/cp0-cp1-progress.md,docs/cp2-copy-drill.md,docs/windows-clean-drill.md,docs/implementation-plan-review.md,docs/planning-inputs.json dist/docs/ -ErrorAction Stop
           Copy-Item docs/policies dist/docs/policies -Recurse -ErrorAction Stop
           Copy-Item docs/profiles/* dist/docs/profiles/ -ErrorAction Stop
-          Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/evidence.py,scripts/v01-smoke.py,scripts/v02-kit-smoke.py,scripts/v02-clean-drill.py,scripts/v03-peer-copy.py,scripts/v06-corpus-smoke.py dist/scripts/ -ErrorAction Stop
+          Copy-Item scripts/install-backends.py,scripts/check-fixture.py,scripts/check-windows-imports.py,scripts/evidence.py,scripts/v01-smoke.py,scripts/v02-kit-smoke.py,scripts/v02-clean-drill.py,scripts/v03-peer-copy.py,scripts/v06-corpus-smoke.py dist/scripts/ -ErrorAction Stop
+          Copy-Item scripts/windows dist/scripts/windows -Recurse -ErrorAction Stop
           Copy-Item tests/fixtures/v1-a.json,tests/fixtures/v1-b.json dist/tests/fixtures/ -ErrorAction Stop
           python scripts/package-notices.py dist/THIRD-PARTY-NOTICES.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

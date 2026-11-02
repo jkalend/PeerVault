@@ -93,6 +93,10 @@ index/access/disk-full and clean-device recovery are open.
 
 ## Still open in CP2
 
+The separate Windows clean-client harness is documented in
+[windows-clean-drill.md](windows-clean-drill.md). It is experimental and does
+not close these items.
+
 - Linux copy/recovery drill on independent physical media; the scored Ubuntu
   profile uses a pinned but virtual same-host ext4 disk.
 - Supported network/keyless/clean-device topology, independent recovery secret

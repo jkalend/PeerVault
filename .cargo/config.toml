@@ -1,0 +1,5 @@
+# Windows recovery media must not depend on a separately installed VC++ runtime.
+# Fresh Windows installations do not necessarily provide vcruntime140.dll; the
+# clean-client drill exposed STATUS_DLL_NOT_FOUND (0xC0000135) when it was absent.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
