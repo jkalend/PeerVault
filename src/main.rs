@@ -7,6 +7,7 @@ mod pins;
 mod production;
 mod recovery_kit;
 mod retention;
+mod schedule;
 
 #[derive(Parser)]
 #[command(
@@ -140,6 +141,20 @@ enum Commands {
         policy: PathBuf,
         #[arg(long)]
         password_file: Option<PathBuf>,
+    },
+    /// Report owner-scheduled verification/scratch-restore freshness.
+    ScheduleStatus {
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
+    },
+    /// Run at most one due scheduled job per configured entry.
+    ScheduleTick {
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
     },
 }
 
@@ -319,6 +334,14 @@ fn run() -> Result<()> {
         } => {
             retention::preview(&repository, &backend, &policy, password_file.as_deref())
                 .map_err(production::operation_failure)?;
+        }
+        Commands::ScheduleStatus { config, state } => {
+            let report = schedule::status(&config, &state)?;
+            schedule::print_report(&report)?;
+        }
+        Commands::ScheduleTick { config, state } => {
+            let report = schedule::tick_once(&config, &state)?;
+            schedule::print_report(&report)?;
         }
         Commands::RecoveryKit { action } => match action {
             RecoveryKitAction::Generate {
