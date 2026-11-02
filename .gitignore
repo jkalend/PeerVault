@@ -7,6 +7,7 @@ out/
 publish/
 .tools/
 .peervault-work*/
+*.csproj.user
 
 # Python
 __pycache__/

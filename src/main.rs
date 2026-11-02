@@ -3,6 +3,7 @@ use bailiff::{backend, fixture, process};
 use clap::{Parser, Subcommand};
 use std::{fs, path::PathBuf};
 
+mod agent;
 mod pins;
 mod production;
 mod recovery_kit;
@@ -151,6 +152,13 @@ enum Commands {
     },
     /// Run at most one due scheduled job per configured entry.
     ScheduleTick {
+        #[arg(long)]
+        config: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
+    },
+    /// Serve owner-only scheduler status/tick requests over inherited stdio.
+    Agent {
         #[arg(long)]
         config: PathBuf,
         #[arg(long)]
@@ -342,6 +350,9 @@ fn run() -> Result<()> {
         Commands::ScheduleTick { config, state } => {
             let report = schedule::tick_once(&config, &state)?;
             schedule::print_report(&report)?;
+        }
+        Commands::Agent { config, state } => {
+            agent::serve(&config, &state)?;
         }
         Commands::RecoveryKit { action } => match action {
             RecoveryKitAction::Generate {

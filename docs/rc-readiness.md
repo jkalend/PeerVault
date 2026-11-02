@@ -17,7 +17,7 @@ marked passed from source presence, CI definitions or a partial drill.
 | V0.5 | read-only retention preview | unit tests + preview smoke; no mutation | no deletion, maintenance, locks, peer roots or GC command |
 | V0.6 | 5 GiB/50k corpus prerequisite | see `docs/v0.6-corpus.md` | metadata/path matrix, power loss, independent beta and same-OS both-platform qualification open |
 | V0.7 | deferred | ADR 0002 | not qualified |
-| V0.8 | experimental scheduler/status core; desktop and IPC absent | config/state/status/tick unit tests; bounded verify/scratch-restore subprocess execution | owner-only IPC, Windows desktop, Linux service integration, restart/clock/cadence matrix partially open |
+| V0.8 | scheduler/status core, owner-only stdio agent and thin WinForms status/tick shell | unit tests, CLI/agent smokes, desktop build | versioned named-pipe/socket IPC, full desktop operations, OS scheduling installers, secret delivery and restart/clock/quota evidence open |
 | V0.9 | not implemented | none | 14-day/three-drill beta evidence missing |
 | RC → 1.0 | not reached | none | frozen compatibility/support, independent security review, packaged clean recovery, license/SBOM, publisher verification and owner go/no-go missing |
 

@@ -57,6 +57,9 @@ jobs:
       - name: Verify Windows recovery binary has no redistributable CRT
         if: runner.os == 'Windows'
         run: python scripts/check-windows-imports.py target/release/peervault.exe
+      - name: Build Windows scheduler desktop
+        if: runner.os == 'Windows'
+        run: dotnet build desktop/PeerVault.Desktop/PeerVault.Desktop.csproj -c Release
       - name: Install checksum-pinned comparison backends
         run: python scripts/install-backends.py
       - name: V0.1 local capture/restore smoke
