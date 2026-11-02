@@ -94,8 +94,10 @@ index/access/disk-full and clean-device recovery are open.
 ## Still open in CP2
 
 The separate Windows clean-client harness is documented in
-[windows-clean-drill.md](windows-clean-drill.md). It is experimental and does
-not close these items.
+[windows-clean-drill.md](windows-clean-drill.md). The QEMU/SeaBIOS BIOS lab
+verify/restore pass is complete for this environment; UEFI VMware/OVMF and
+independent hardware remain open. It is experimental and does not close the
+items below.
 
 - Linux copy/recovery drill on independent physical media; the scored Ubuntu
   profile uses a pinned but virtual same-host ext4 disk.

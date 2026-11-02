@@ -1,10 +1,11 @@
 # Windows clean-client RecoveryKit drill
 
-Status: experimental harness, 2026-11-02. This is not a CP2, R0 or V0.2 gate
-pass. It exercises RecoveryKit verification and exact restore from read-only
-copied media in a fresh Windows VM. The source workspace, original device and
-writer state are absent from the VM; independent hardware, key custody and
-network topology are not tested.
+Status: experimental lab drill, 2026-11-03. The BIOS/QEMU clean-client path
+passed; the UEFI VMware/OVMF path is deferred pending a bootable firmware/hardware
+path. This is not a CP2, R0 or V0.2 gate pass. It exercises RecoveryKit
+verification and exact restore from read-only copied media in a fresh Windows
+VM. The source workspace, original device and writer state are absent from the
+VM; independent hardware, key custody and network topology are not tested.
 
 ## Scope
 
@@ -97,8 +98,9 @@ qemu-system-x86_64 -machine pc,accel=kvm -cpu host -smp 4 -m 6144 \
 
 The guest reaches the desktop with no input, runs the first-logon test and shuts
 down. Use the monitor only for diagnostics; a successful run needs no manual
-OOBE or boot selection. OVMF/UEFI and VMware boot paths remain separate open
-issues.
+OOBE or boot selection. OVMF/UEFI and VMware boot paths are deferred pending a
+compatible unattended firmware/hardware path; they are not required for the
+recorded BIOS lab pass.
 
 ## Harness contract
 
@@ -164,6 +166,24 @@ starting this installer ISO; those paths remain unvalidated. Windows 11 on BIOS
 is suitable only for this disposable recovery-harness experiment. See
 [CP2 copy drill progress](cp2-copy-drill.md) for the gate's remaining
 independent-media and fault work.
+
+## Status matrix
+
+| Work item | Status |
+|---|---|
+| Windows harness destination/exit-code/hash handling | done |
+| Static Windows CRT and PE-import gate | done |
+| `Get-FileHash`-independent harness hashing | done |
+| Unattended OOBE and first-logon execution | done on the BIOS lab profile |
+| Fresh Windows clean-client verify + restore + four-file hashes | done on QEMU/KVM SeaBIOS |
+| Host-side media regression | done |
+| UEFI VMware/QEMU OVMF boot path | deferred: installer boot firmware/hardware not currently viable here |
+| Independent physical media/hardware, source-disk absence | open, not viable in this lab |
+| Separate key custody, rotation and network/keyless recovery | open |
+| CP2 containment/fault/index/full-read residual matrix | open |
+
+“Done” here means the named lab check passed; it does not promote CP2, R0 or
+V0.2, which require independent-media and clean-hardware evidence.
 
 ## Limits
 

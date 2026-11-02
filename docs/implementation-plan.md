@@ -13,7 +13,10 @@ evidence; a V0.2 RecoveryKit and author-only copy drill and a V0.3 one-peer
 copy-record drill, a read-only retention preview and a 5 GiB/50k corpus
 prerequisite exist. V0.4 selected the backup-only 0.9 path; supported sync
 remains a separate open branch. V0.6 beta, V0.8 desktop, V0.9 measured beta and RC
-remain blocked; see [RC readiness](rc-readiness.md).
+remain blocked; see [RC readiness](rc-readiness.md). A QEMU/SeaBIOS BIOS
+clean-client lab verify/restore pass is recorded in
+[the Windows drill](windows-clean-drill.md); UEFI/VMware, independent media and
+clean-hardware evidence remain open.
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent
