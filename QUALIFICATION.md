@@ -112,10 +112,12 @@ authenticated network transport and independent hardware remain open.
 ## Run the Windows clean-client drill
 
 See [docs/windows-clean-drill.md](docs/windows-clean-drill.md) for the media
-layout, unattended answer file, static-runtime import gate and serial result
+layout, unattended answer files, static-runtime import gate and serial result
 contract. The VM must reach the test with no manual OOBE interaction; a visible
-OOBE page is a provisioning failure, not a prompt to click through. This drill is
-experimental clean-VM evidence, not a CP2 or V0.2 gate pass.
+OOBE page is a provisioning failure, not a prompt to click through. The validated
+lab path is QEMU/SeaBIOS with `autounattend-bios.xml`; the VMware/OVMF UEFI path
+remains open. This drill is experimental clean-VM evidence, not a CP2 or V0.2
+gate pass.
 
 ## Preview retention
 

@@ -74,6 +74,32 @@ The separate `PEERVAULT_SECRET` ISO is not built by this script and must contain
 `autounattend.xml` contains a disposable lab credential only; it is not a
 product secret.
 
+For the tested SeaBIOS/BIOS lab path, copy `autounattend-bios.xml` over
+`autounattend.xml` in the staging directory before running the builder. It uses
+an active primary system partition instead of EFI/MSR partitions. The UEFI
+answer file remains separate because its VMware/OVMF boot path is not yet
+validated.
+
+## Tested QEMU/BIOS runner
+
+The passing lab run used QEMU 6.2 with KVM and SeaBIOS. A representative command
+is:
+
+```text
+qemu-system-x86_64 -machine pc,accel=kvm -cpu host -smp 4 -m 6144 \
+  -drive file=<blank-80g.qcow2>,format=qcow2,if=ide,index=0 \
+  -drive file=<secret.iso>,media=cdrom,readonly=on,if=ide,index=1 \
+  -drive file=<windows-install.iso>,media=cdrom,readonly=on,if=ide,index=2 \
+  -drive file=<peervault-test-bios.iso>,media=cdrom,readonly=on,if=ide,index=3 \
+  -boot order=d,menu=off -display none -vnc 127.0.0.1:1 \
+  -serial file:serial.log -monitor tcp:127.0.0.1:4445,server,nowait
+```
+
+The guest reaches the desktop with no input, runs the first-logon test and shuts
+down. Use the monitor only for diagnostics; a successful run needs no manual
+OOBE or boot selection. OVMF/UEFI and VMware boot paths remain separate open
+issues.
+
 ## Harness contract
 
 `run-test.ps1` runs from the `PEERVAULT_TEST` volume. It:
@@ -96,21 +122,46 @@ A valid result has `verify_exit: 0`, `restore_exit: 0`,
 ## Validation status
 
 The first clean-VM attempt failed before the binary started because the Windows
-build imported `VCRUNTIME140.dll`; the static build removes that dependency. Second run with the static binary passed RecoveryKit verification but the
+build imported `VCRUNTIME140.dll`; the static build removes that dependency. A
+second run with the static binary passed RecoveryKit verification but the
 harness had pre-created `C:\restored`, so restore was refused and the run was
 correctly `ok: false`. This document records the repaired harness.
 
 A host-side execution of the same test media and static binary on 2026-11-02
 passed RecoveryKit verify, restore, the four-file count, all expected sizes and
 SHA-256 hashes (`ok: true`). This validates the product/harness data path, not
-the clean VM, boot selection or OOBE path.
+a clean VM boot or OOBE path.
 
-A fresh run with the repaired media and unattended answer file did not reach
-Windows Setup: VMware's UEFI firmware stopped at the Boot Manager screen.
-`efi.bootOrder` changed the displayed device order but did not select the
-installer, and no guest input was used. Therefore zero-click OOBE and a passing
-restore remain unvalidated. VM provisioning must force the installer boot without
-firmware interaction before this drill contributes passing evidence. See
+A fresh unattended lab run then passed end-to-end on 2026-11-02 using:
+QEMU 6.2 with KVM, SeaBIOS (BIOS), the Windows 11 Enterprise Eval 26H2 x64
+image, a blank 80 GiB disk, `peervault-test-bios.iso` built from
+`scripts/windows/autounattend-bios.xml`, and the separate secret ISO. The run
+reached the desktop with no OOBE input, executed the first-logon test, and
+reported:
+
+| Field | Result |
+|---|---|
+| verify | `pass`; `repository_bound: true`; `full_read: true` |
+| restore | `pass`; `files: 4`; `directories: 2`; `bytes: 1048593` |
+| expected/restored count | `4 / 4` |
+| hash mismatches | none |
+| serial `ok` | `true` |
+
+The retained serial SHA-256 is
+`40c78009c355a79fff5ef9544189f806c1cdebd41e17fd0e559988040b6ea0d8`;
+the BIOS test-media ISO SHA-256 is
+`507957945123fed1a72af9f73b7b43137b49ec8098d0b6a7e9a144928f87998d`;
+the BIOS answer-file SHA-256 is
+`dfd899907147b033c2b8cf03e75f86951fdcf7434771e3787708d26037faf63f`;
+the static binary SHA-256 is
+`9eedd329588f7259aa6694e46e53bcf825a4b1582fe9c7d159cc1d9e3a66e3f1`.
+The Windows image SHA-256 is
+`bc3f24086ebadc94489066b5ad78089e2cf5c3491e90e790bb81a2b199c10e38`.
+
+This pass is a **BIOS lab profile**, not a UEFI VMware/OVMF or independent-media
+qualification. VMware UEFI stopped at the Boot Manager and QEMU OVMF timed out
+starting this installer ISO; those paths remain unvalidated. Windows 11 on BIOS
+is suitable only for this disposable recovery-harness experiment. See
 [CP2 copy drill progress](cp2-copy-drill.md) for the gate's remaining
 independent-media and fault work.
 
