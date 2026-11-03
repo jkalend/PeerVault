@@ -194,5 +194,8 @@ made. Supported backup-only 0.9 precedes full 1.0 if sync remains unqualified.
 
 ## License
 
-All rights reserved until a license is chosen. Public visibility does not grant
-an open-source license. Third-party dependencies retain their own licenses.
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
+
+Copyright 2026 jkalend. Third-party dependencies retain their own licenses.
