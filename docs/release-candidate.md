@@ -1,8 +1,8 @@
 # Release candidate 1 — 2026-11-18
 
-Status: **verified build candidate, not a supported release.** Owner go/no-go and
-the external/hardware gates remain open. This document records the exact bytes
-that were built and verified; it is not a publication.
+Status: **verified build candidate published as a draft prerelease, not a
+supported release.** Owner go/no-go for supported 0.9 and the external/hardware
+gates remain open. Draft: `v0.0.1-rc.1`.
 
 ## Identity
 
@@ -11,16 +11,19 @@ that were built and verified; it is not a publication.
 | Commit | `a473985e7a9e4a47187225c2425f55a600ea41dc` |
 | Components pin | `3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd` (bailiff Apache-2.0) |
 | CI | run `44409613946`, windows-2025 + ubuntu-24.04, pass |
-| Package | `peervault-rc1-windows-x64.zip` (framework-dependent desktop payload included) |
-| Package SHA-256 | `4286efc2fdc5ea318408f37b6403393d2c097d724453624d0c8be8f55854f8ed` |
-| SBOM SHA-256 | `2cd76cd059e0ddb2e61ebfa2010861d626a618bd16cf3d49a48c34d9743ab188` |
-| Manifest SHA-256 | `d5228c3e9ae18e20f845a14d777879ff408159da4ba92df7fc6ab2d5c7f5005c` |
-| Notices SHA-256 | `a0dbecd9beb001efbf7c19a7655ac1720e2218fadd5549b44d77b7660eebcab9` |
+| Windows package | `peervault-windows-2025.zip` (framework-dependent desktop payload included) |
+| Windows SHA-256 | `4cb7e9c21d8ec4130b4843631010e7a3d9d7c0a66a6722ffb190506224c6f1ff` |
+| Linux package | `peervault-ubuntu-24.04.tar.gz` |
+| Linux SHA-256 | `67abca447a9f05fa3529a92ba836bf4a9e762089fbef99f81da0e5e1a3b9e65f` |
+| SBOM SHA-256 (Windows package) | `2cd76cd059e0ddb2e61ebfa2010861d626a618bd16cf3d49a48c34d9743ab188` |
+| Manifest SHA-256 (Windows package) | `f49e4b6bf95d77db92f51d313b1e0bd393a1f432532a0a35f2b8f51aef7a6c23` |
+| Notices SHA-256 (Windows package) | `a0dbecd9beb001efbf7c19a7655ac1720e2218fadd5549b44d77b7660eebcab9` |
 
-The archive contains 93 members: CLI, desktop payload, docs, scripts, fixtures,
-LICENSE, notices, SBOM and release manifest. The release manifest hashes the CLI
-and all five desktop payload files; package verification rejects unmanifested
-executables.
+The Windows archive contains 85 members; Linux 89 (additional platform SBOM
+components). Both contain the CLI, desktop payload on Windows, docs, scripts,
+fixtures, LICENSE, notices, SBOM and release manifest. The release manifest hashes
+the CLI and all five desktop payload files; package verification rejects
+unmanifested executables.
 
 ## Verification performed
 
@@ -46,6 +49,6 @@ drills.
 - Physical media failure and independent hardware/source-disk-absent recovery.
 - Publisher signing/fingerprint and owner go/no-go against this exact manifest.
 
-Do not publish this artifact as a supported release until
-[release-checklist.md](release-checklist.md) is fully green. A draft/publication
-action must be explicitly authorized by the owner.
+This draft exists for superproject pinning and review. Do not relabel it as a
+supported release until [release-checklist.md](release-checklist.md) is fully
+green and the owner records go/no-go against these exact hashes.
