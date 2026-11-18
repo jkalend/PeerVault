@@ -29,7 +29,7 @@ requires a new candidate.
 | P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota and 64 MiB tmpfs ENOSPC drills preserve the baseline and leave no complete target; physical media failure, denied access and index rebuild open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
-| P0 | Clean Ubuntu 24.04 | partial | V0.1 and matrix pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |
+| P0 | Clean Ubuntu 24.04 | partial | V0.1, matrix, IPC and scheduler pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |
 | P0 | Independent hardware/media | not started | source disk absent, distinct named media, recovery from peer plus separately held keys |
 | P0 | Publisher verification | partial | checksum sidecars exist; signing key/fingerprint and published verification instructions outside the repo |
 | P0 | Owner go/no-go | not started | signed decision against the exact artifact/evidence manifest |

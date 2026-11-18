@@ -29,7 +29,7 @@ supported-release gates.
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
 | V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
-| Clean Ubuntu 24.04 container | pass | fresh `ubuntu:24.04`; V0.1 and matrix pass; container shares host kernel |
+| Clean Ubuntu 24.04 container | pass | fresh `ubuntu:24.04`; V0.1, matrix, IPC and scheduler pass; container shares host kernel |
 | Internal security review | fixes applied | F1–F9 dispositions in `security-review-2026-11-18.md`; external review open |
 | CI on `d18d0b3` | pass | run `44396857979`: windows-2025 and ubuntu-24.04, including package license verification |
 
