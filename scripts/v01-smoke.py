@@ -80,11 +80,14 @@ def main():
     assert result.returncode == 0, result.stderr
 
     policy = root / "retention.json"
-    policy.write_text('{"schema_version":1,"keep_last":1,"keep_tagged":[],"keep_snapshots":[],"minimum_keep":1}\n', encoding="utf-8")
-    result = run(binary, ["retention-preview", "--repository", str(repository), "--backend", backend, "--policy", str(policy)])
+    policy.write_text('{"schema_version":1,"keep_last":1,"keep_tagged":[],"keep_snapshots":[],"minimum_keep":1,"floor_points":1,"floor_days":0}\n', encoding="utf-8")
+    state = root / "retention-state.json"
+    result = run(binary, ["retention", "state-init", "--repository", str(repository), "--backend", backend, "--state", str(state)])
+    assert result.returncode == 0, result.stderr
+    result = run(binary, ["retention", "preview", "--repository", str(repository), "--backend", backend, "--policy", str(policy), "--state", str(state)])
     assert result.returncode == 0, result.stderr
     plan = json.loads(result.stdout)
-    assert plan["apply"] is False and len(plan["keep"]) == 1 and len(plan["delete_candidates"]) == 1
+    assert plan["action"] == "preview" and len(plan["keep"]) == 1 and len(plan["delete_candidates"]) == 1
     assert len(json.loads(run(binary, ["history", "--repository", str(repository), "--backend", backend]).stdout)["snapshots"]) == 2
 
     known = {snapshot["id"]: snapshot for snapshot in history["snapshots"]}

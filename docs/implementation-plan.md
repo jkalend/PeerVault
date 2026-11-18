@@ -1,6 +1,6 @@
 # PeerVault implementation and release roadmap
 
-Status: experimental R0 implementation, 2026-11-01. Fixture/compare/bakeoff and
+Status: experimental implementation, 2026-11-18. Fixture/compare/bakeoff and
 same-host copy/recovery topology source, backend pins and CI definitions exist.
 Scored runs and the restic selection are in
 [ADR 0001](adr/0001-r0-backend-selection.md); R0 fault/containment residuals and
@@ -9,16 +9,16 @@ passing run evidence. The first CP2 slice is recorded in
 [CP2 copy drill progress](cp2-copy-drill.md); the backend/profile selection is
 recorded in [ADR 0001](adr/0001-r0-backend-selection.md). A V0.1 local
 capture/history/verify/restore adapter exists as experimental source with smoke
-evidence; a V0.2 RecoveryKit and author-only copy drill and a V0.3 one-peer
-copy-record drill, a read-only retention preview and a 5 GiB/50k corpus
+evidence; a V0.2 RecoveryKit and author-only copy drill, a V0.3 one-peer
+copy-record drill, an owner-executed V0.5 retention plan and a 5 GiB/50k corpus
 prerequisite exist. V0.4 selected the backup-only 0.9 path; supported sync
-remains a separate open branch. V0.6 beta, V0.8 desktop, V0.9 measured beta and RC
-remain blocked; see [RC readiness](rc-readiness.md). The V0.8 scheduler/status
-core is partial and documented in [V0.8](v0.8.md); owner-only IPC and the Windows
-desktop remain open. A QEMU/SeaBIOS BIOS
-clean-client lab verify/restore pass is recorded in
-[the Windows drill](windows-clean-drill.md); UEFI/VMware, independent media and
-clean-hardware evidence remain open.
+remains a separate open branch. V0.6 beta, V0.8 complete desktop, V0.9 measured
+beta and RC remain blocked; see [RC readiness](rc-readiness.md). The V0.8
+scheduler/status core, versioned owner-only IPC and desktop operations are
+partial and documented in [V0.8](v0.8.md); OS scheduler installers, platform
+secret delivery, retention apply and restart/clock/quota evidence remain open. A QEMU/SeaBIOS BIOS clean-client lab
+verify/restore pass is recorded in [the Windows drill](windows-clean-drill.md);
+UEFI/VMware, independent media and clean-hardware evidence remain open.
 
 [Review history](../../../project-planning/projects/peervault-release-plan.md#planning-review):
 Terra's original three findings were repaired; the subsequent
@@ -68,7 +68,7 @@ treating historical research versions as current dependencies.
 
 | Stage | Result and acceptance |
 |---|---|
-| [V0.5](../../../project-planning/projects/peervault-release-plan.md#v05--retention-without-destroying-recovery) | Retention preview and safe backend maintenance; pin each required peer's last verified/restored copy until its replacement passes; protect active work and pass crash/concurrency tests. |
+| [V0.5](../../../project-planning/projects/peervault-release-plan.md#v05--retention-without-destroying-recovery) | Owner-executed retention with backend-native maintenance; pin each required peer's last verified/restored copy until its replacement passes; protect active work and pass crash/concurrency tests. Preview/apply, floors, peer roots and mass-change pause are implemented; independent security review and crash/concurrency qualification remain open. |
 | [V0.6](../../../project-planning/projects/peervault-release-plan.md#v06--supported-backup-and-peer-beta-on-both-platforms) | Qualified Windows/NTFS and Linux/ext4 backup/replication, metadata/path matrix, portable-subset restore, upgrade and scoped power-loss drills. |
 | [V0.7](../../../project-planning/projects/peervault-release-plan.md#v07--supported-opt-in-live-folder-sync) | Separate supported-sync branch for full 1.0: reviewed offline/rejoin/deletion rules and durable pre-delete conflict bridge; can remain open while backup-only 0.9 ships. |
 | [V0.8](../../../project-planning/projects/peervault-release-plan.md#v08--scheduling-status-and-windows-desktop) | Windows C# desktop, Linux CLI scheduling and opt-in full-read/scratch-restore jobs over one core, with owner-only IPC, freshness and restart safety. |
@@ -102,9 +102,16 @@ Multi-user collaboration, public sharing and arbitrary live-app consistency need
 new scope decisions. The nine named capability areas are concerns in this product,
 not services to scaffold.
 
-Next action: implement V0.1 against the selected restic adapter. The remaining
-R0 residuals — observed-phase faults, index/access/disk-full cases, production
-containment, Linux independent-media copy and the full redistribution matrix —
-stay open and tracked in ADR 0001. The local copy drill covers native copy, ID
-mapping, source absence and receiver restore for both candidates on one host; it
-is partial evidence only.
+Next actions, in order: (1) resolve the blocking bailiff/Components
+redistribution license before any binary release; (2) complete V0.6
+upgrade/rollback, scoped power-loss, disk-full/index-rebuild and target Ubuntu
+24.04 qualification; (3) finish V0.8 OS scheduler installers, platform secret
+stores, retention apply and restart/clock/capacity/accessibility evidence;
+(4) complete the V0.5 security checkpoint plus concurrent capture/restore and
+kill-at-phase tests; (5) run the 14-day/three-drill beta with a second operator
+on independent hardware. The remaining R0 residuals —
+observed-phase faults, index/access/disk-full cases, production containment,
+Linux independent-media copy and the full redistribution matrix — stay open and
+tracked in ADR 0001. The local copy drill covers native copy, ID mapping, source
+absence and receiver restore for both candidates on one host; it is partial
+evidence only.

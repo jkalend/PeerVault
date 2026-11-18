@@ -7,6 +7,7 @@ import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
+import urllib.error
 import zipfile
 
 spec = importlib.util.spec_from_file_location("installer", Path(__file__).with_name("install-backends.py"))
@@ -77,6 +78,37 @@ class InstallerTests(unittest.TestCase):
         pin["version"] = "2.0"
         with self.assertRaises(ValueError): self.attempt(self.zip_asset(), pin)
         with self.assertRaises(ValueError): installer.select_asset(pin, "darwin")
+
+    def test_transient_download_is_retried_but_client_error_is_not(self):
+        payload = b"archive bytes"
+        asset = {"url": "https://github.com/example/project/releases/download/v1.0/sample.zip"}
+        class Flaky:
+            def __init__(self):
+                self.calls = 0
+            def __call__(self, request, timeout):
+                self.calls += 1
+                if self.calls < installer.DOWNLOAD_ATTEMPTS:
+                    raise urllib.error.URLError("transient")
+                return io.BytesIO(payload)
+        flaky = Flaky()
+        with patch.object(installer.time, "sleep"):
+            self.assertEqual(installer.download(asset, flaky), payload)
+        self.assertEqual(flaky.calls, installer.DOWNLOAD_ATTEMPTS)
+
+        class Missing:
+            def __init__(self):
+                self.calls = 0
+                self.error = None
+            def __call__(self, request, timeout):
+                self.calls += 1
+                self.error = urllib.error.HTTPError(request.full_url, 404, "not found", {}, io.BytesIO())
+                raise self.error
+        missing = Missing()
+        with patch.object(installer.time, "sleep"):
+            with self.assertRaises(urllib.error.HTTPError):
+                installer.download(asset, missing)
+        missing.error.close()
+        self.assertEqual(missing.calls, 1)
 
     def test_bzip_tar_and_download_limits(self):
         data = bz2.compress(self.binary)

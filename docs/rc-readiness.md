@@ -1,8 +1,9 @@
 # RC readiness — honest gate status
 
-Status: **RC not reached**. The implementation now covers R0 through the V0.5
-retention preview plus a V0.6 corpus prerequisite. V0.6 beta qualification,
-V0.8 desktop, V0.9 measured-recovery beta and the RC gates remain open. No gate is
+Status: **RC not reached**. The implementation now covers R0 through an
+owner-executed V0.5 retention plan, plus a V0.6 corpus prerequisite and a partial
+V0.8 scheduler/desktop. V0.6 beta qualification, complete V0.8 IPC/product
+surface, V0.9 measured-recovery beta and the RC gates remain open. No gate is
 marked passed from source presence, CI definitions or a partial drill.
 
 ## Stage matrix
@@ -14,11 +15,11 @@ marked passed from source presence, CI definitions or a partial drill.
 | V0.2 | RecoveryKit generate/verify, author-only drill and fresh network-isolated Linux container recovery | Windows + Ubuntu drills; container full-read/restore; kit smoke | Windows clean profile, independent operator/hardware and rotation remain open |
 | V0.3 | one-peer additive copy record, source removal, peer full read, clean restore | Windows + Ubuntu local-filesystem drills | no authenticated transport/pairing/keyless receiver or independent hardware |
 | V0.4 | backup-only 0.9 decision | ADR 0002 | supported sync intentionally not claimed |
-| V0.5 | read-only retention preview | unit tests + preview smoke; no mutation | no deletion, maintenance, locks, peer roots or GC command |
-| V0.6 | 5 GiB/50k corpus prerequisite | see `docs/v0.6-corpus.md` | metadata/path matrix, power loss, independent beta and same-OS both-platform qualification open |
+| V0.5 | preview/apply with state generation, owner lock, peer-root pins, floors, mass-change pause and backend-native forget/prune | unit tests + same-host drill; stale-plan replay, mass-change refusal and exact post-apply restore | independent security review, concurrent capture/restore, disk-full/kill-at-phase, clock/listing and remote-peer cases open |
+| V0.6 | 5 GiB/50k corpus prerequisite; metadata/path matrix; cancellation/serialization and bidirectional cross-OS restore | `docs/v0.6-corpus.md`, `docs/v0.6-matrix.md`; Windows NTFS + Ubuntu 22.04 WSL2 ext4 | upgrade/rollback, power loss, disk-full/index rebuild, target Ubuntu 24.04, independent beta open |
 | V0.7 | deferred | ADR 0002 | not qualified |
-| V0.8 | scheduler/status core, owner-only stdio agent and thin WinForms status/tick shell | unit tests, CLI/agent smokes, desktop build | versioned named-pipe/socket IPC, full desktop operations, OS scheduling installers, secret delivery and restart/clock/quota evidence open |
-| V0.9 | not implemented | none | 14-day/three-drill beta evidence missing |
+| V0.8 | scheduler/status core, versioned owner-only IPC, desktop operations and OS scheduler installers | unit tests, IPC drill on Windows and Linux, Task Scheduler/systemd dry runs, C# build | platform secret stores, retention apply, restart/clock/quota, accessibility and second-operator evidence open |
+| V0.9 | five-run same-host capture/full-read/restore measurement | `docs/v0.9-measure.md` (64 MiB, debug and release builds) | 14-day/three-clean-drill beta, RSS/CPU and independent evidence missing |
 | RC → 1.0 | not reached | none | frozen compatibility/support, independent security review, packaged clean recovery, license/SBOM, publisher verification and owner go/no-go missing |
 
 ## What can be demonstrated today
@@ -28,9 +29,18 @@ marked passed from source presence, CI definitions or a partial drill.
 - An encrypted tree oracle with stable capture-ID mapping across backend copy.
 - A secret-free RecoveryKit and an author-only copy/source-removal/recovery drill.
 - A `PeerCopyRecord v1` additive local peer-copy state trail.
-- A read-only retention preview that protects missing-oracle history.
-- CI on windows-2025 and ubuntu-24.04 for the R0 smoke, V0.1 restore, V0.2 kit and
-  V0.3 peer record.
+- An owner-executed retention plan that protects floors, missing-oracle history
+  and required peer roots; stale or drifted plans are refused.
+- A declared metadata/path subset with supported, rejected and lossy cases on
+  Windows/NTFS and Ubuntu 22.04/ext4; prior snapshots survive refused captures.
+- Cancellation of a large capture exits `130`, leaks no complete oracle, and
+  refuses concurrent capture/verify through the repository lock.
+- A versioned owner-only named pipe/Unix socket, same-user SID/UID checks,
+  an operation allowlist and desktop capture/history/verify/restore/preview.
+- A five-run repeated capture/full-read/restore measurement with raw
+  observations and descriptive median/p95.
+- CI on windows-2025 and ubuntu-24.04 for the R0 smoke, V0.1 restore, V0.2 kit,
+  V0.3 peer record, V0.5 retention, V0.6 matrix/cancellation and V0.8 IPC drills.
 
 ## Blocking RC
 
@@ -41,10 +51,13 @@ marked passed from source presence, CI definitions or a partial drill.
 3. **Product surface**: scheduling/status and the Windows desktop with owner-only
    IPC; no supported GUI exists.
 4. **Release engineering**: independent security review, frozen compatibility and
-   support matrix, packaged clean recovery, license/notices/SBOM, publisher
-   verification, signed artifacts and owner go/no-go.
-5. **Retention**: no deletion/maintenance implementation; the preview is read-only
-   and does not evaluate locks, peer roots or recovery pins.
+   support matrix, packaged clean recovery, publisher verification, signed
+   artifacts and owner go/no-go. The current package has an SBOM/notices and
+   checksum verification, but the **bailiff all-rights-reserved license blocks
+   binary redistribution** until the owner resolves it.
+5. **Retention**: deletion/maintenance exists, but the independent security
+   checkpoint, concurrent capture/restore/transfer, disk-full, kill-at-phase,
+   clock/listing and remote-peer-root cases are not qualified.
 
 ## Honest stop point
 

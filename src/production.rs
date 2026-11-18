@@ -8,12 +8,13 @@ use crate::pins;
 use anyhow::{Context, Result, bail, ensure};
 use bailiff::fixture::{hash_file, validate_path};
 use bailiff::process::bounded;
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
-    fs::{self, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
@@ -24,6 +25,7 @@ use tar::EntryType;
 pub const SCHEMA_VERSION: u32 = 2;
 pub const EXIT_FAILURE: i32 = 3;
 pub const EXIT_INCOMPLETE: i32 = 4;
+pub const EXIT_BUSY: i32 = 5;
 
 const MANIFEST_SCHEMA_VERSION: u32 = 1;
 const CAPTURE_TAG: &str = "peervault-capture";
@@ -50,7 +52,7 @@ impl fmt::Display for ExitFailure {
 
 impl std::error::Error for ExitFailure {}
 
-fn failure(code: i32, message: impl Into<String>) -> anyhow::Error {
+pub(crate) fn failure(code: i32, message: impl Into<String>) -> anyhow::Error {
     anyhow::Error::new(ExitFailure {
         code,
         message: message.into(),
@@ -183,6 +185,53 @@ struct ResticSnapshot {
     paths: Vec<String>,
     #[serde(default)]
     tags: Vec<String>,
+}
+
+pub(crate) struct RepositoryLock {
+    _file: File,
+}
+
+impl RepositoryLock {
+    pub(crate) fn exclusive(repository: &Path) -> Result<Self> {
+        Self::acquire(repository, true)
+    }
+
+    pub(crate) fn shared(repository: &Path) -> Result<Self> {
+        Self::acquire(repository, false)
+    }
+
+    fn acquire(repository: &Path, exclusive: bool) -> Result<Self> {
+        let path = repository.join(".peervault.lock");
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)
+            .with_context(|| format!("cannot open repository lock {}", path.display()))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        }
+        let result = if exclusive {
+            FileExt::try_lock_exclusive(&file)
+        } else {
+            FileExt::try_lock_shared(&file)
+        };
+        if let Err(error) = result {
+            let busy = error.kind() == std::io::ErrorKind::WouldBlock
+                || (cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)));
+            if busy {
+                return Err(failure(
+                    EXIT_BUSY,
+                    "repository is busy; another PeerVault operation holds the owner lock",
+                ));
+            }
+            return Err(error).context("cannot acquire repository lock");
+        }
+        Ok(Self { _file: file })
+    }
 }
 
 pub(crate) struct Credential {
@@ -469,6 +518,7 @@ pub fn capture(
     let credential = Credential::new(password_file)?;
     ensure!(repository.is_dir(), "repository does not exist");
     ensure!(source.is_dir(), "source must be a directory");
+    let _lock = RepositoryLock::exclusive(repository).context("cannot serialize capture")?;
     let started = Instant::now();
     let before = scan_source(source)?;
     if before.files.is_empty() {
@@ -597,6 +647,17 @@ fn publish_manifest(
     Ok(id)
 }
 
+pub(crate) fn snapshot_ids(
+    backend: &BackendInfo,
+    repository: &Path,
+    credential: &Credential,
+) -> Result<BTreeSet<String>> {
+    Ok(snapshots(backend, repository, credential)?
+        .into_iter()
+        .map(|snapshot| snapshot.id)
+        .collect())
+}
+
 pub(crate) fn snapshot_refs(
     backend: &BackendInfo,
     repository: &Path,
@@ -667,6 +728,7 @@ pub fn verify(
     let backend = backend(backend_path)?;
     let credential = Credential::new(password_file)?;
     ensure!(repository.is_dir(), "repository does not exist");
+    let _lock = RepositoryLock::shared(repository).context("cannot serialize verification")?;
     if let Some(snapshot) = snapshot {
         validate_snapshot_id(snapshot)?;
         let known = snapshots(&backend, repository, &credential)?;
@@ -743,6 +805,7 @@ pub fn restore(
     let backend = backend(backend_path)?;
     let credential = Credential::new(password_file)?;
     ensure!(repository.is_dir(), "repository does not exist");
+    let _lock = RepositoryLock::shared(repository).context("cannot serialize restore")?;
     validate_snapshot_id(snapshot)?;
     validate_destination(destination)?;
     let parent = destination

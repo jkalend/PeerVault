@@ -8,7 +8,7 @@ import sys
 host = next(line.removeprefix("host: ") for line in subprocess.check_output(["rustc", "-vV"], text=True).splitlines() if line.startswith("host: "))
 metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--format-version=1", "--filter-platform", host], text=True, encoding="utf-8"))
 resolved = {node["id"] for node in metadata["resolve"]["nodes"]}
-notices = ["PeerVault: all rights reserved until a distribution license is chosen.\nThird-party components retain the following terms.\n"]
+notices = ["PeerVault is licensed under the Apache License, Version 2.0.\nThird-party components retain the following terms.\n"]
 for package in sorted(metadata["packages"], key=lambda package: (package["name"], package["version"])):
     if package["id"] not in resolved or package["name"] == "peervault":
         continue

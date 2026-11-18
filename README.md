@@ -2,14 +2,20 @@
 
 > Encrypted, deduplicated, versioned storage with repeatable restore verification.
 
-**Status: experimental R0–V0.5 plus a V0.6 corpus prerequisite.** The Rust
-fixture/compare/bakeoff harness, backend pins, CI definitions, a V0.1 local
-capture/history/verify/restore adapter, a V0.2 secret-free RecoveryKit/copy drill,
-a V0.3 one-peer copy-record drill, a V0.4 backup-only sync decision, a read-only
-V0.5 retention preview and a 5 GiB/50k corpus smoke exist. V0.6 beta, V0.8
-desktop, V0.9 measured beta and RC gates remain open. Each restore report
-covers an exact tested snapshot/profile/drill, not a permanent recoverability
-guarantee.
+**Status: experimental R0–V0.5, with partial V0.6 and V0.8 work; supported
+release not reached.** The Rust fixture/compare/bakeoff harness, backend pins,
+CI definitions, a V0.1 local capture/history/verify/restore adapter, a V0.2
+secret-free RecoveryKit/copy drill, a V0.3 one-peer copy-record drill, a V0.4
+backup-only sync decision, an owner-executed V0.5 retention plan with
+backend-native forget/prune, a V0.6 5 GiB/50k corpus prerequisite and a partial
+V0.8 scheduler, versioned owner-only IPC and desktop shell exist. V0.6 beta, V0.8 complete desktop,
+V0.9 measured beta and RC gates remain open. Each restore report covers an exact
+tested snapshot/profile/drill, not a permanent recoverability guarantee.
+
+Release readiness: **not releasable**. See the
+[release checklist](docs/release-checklist.md), [support scope](docs/support-policy.md),
+[compatibility matrix](docs/compatibility.md), [owner runbook](docs/runbook.md)
+and the blocking [license review](docs/license-review.md).
 
 Canonical design: [peervault](https://github.com/jkalend/project-planning/blob/main/projects/peervault.md)
 
@@ -118,19 +124,33 @@ V0.4 selected the pre-approved **backup-only 0.9** path rather than adopting an
 unqualified live-folder sync engine. No sync conflict or tombstone behavior is
 claimed; see [ADR 0002](docs/adr/0002-v0.4-sync-decision.md).
 
-V0.5 is a **read-only retention preview**. It lists keep/protected/delete
-candidates and never deletes or runs backend maintenance:
+V0.5 retention has an **owner-executed** path. A preview binds the policy,
+repository binding, state generation, peer roots, inventory and an expiring
+token; apply revalidates all of it under an OS-owned lock and runs only backend-
+native `restic forget --prune` for the previewed captures and their oracle
+snapshots. Default floors keep three recovery points and everything younger than
+30 days. A required peer root is pinned until explicitly abandoned, and a
+mass-change pause refuses deletion without `--ack-mass-change`.
 
 ```text
-peervault retention-preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --password-file <secret>
+peervault retention state-init --repository <repo> --backend .tools/restic --state <state.json> --password-file <secret>
+peervault retention peer-record --state <state.json> --peer-id alpha --peer-repository-id <64-hex> --snapshot <id> --capture-id <id> --oracle-manifest <id> --key-version v1 --evidence <copy-drill-report.json>
+peervault retention preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --state <state.json> --password-file <secret> > plan.json
+peervault retention apply --plan plan.json --backend .tools/restic --state <state.json> --password-file <secret>
 ```
 
-See [V0.5 limits](docs/v0.5.md). There is no PeerVault GC command.
+See [V0.5 limits and drill](docs/v0.5.md). The preview is execution authority for
+its exact expiry/generation/inventory; a stale or edited plan is refused. This is
+not an independent security review or a remote-peer deletion feature.
 
-The V0.6 corpus prerequisite passed on Windows/NTFS: 50,001 files / 5,375,109,120
-bytes captured, full-read and restored exactly in 664.5 s. It is a prerequisite,
-not a beta qualification; see [corpus evidence](docs/v0.6-corpus.md). RC is not
-reached; the gate matrix is in [RC readiness](docs/rc-readiness.md).
+The V0.6 corpus prerequisite passed once on Windows/NTFS: 50,001 files /
+5,375,109,120 bytes captured, full-read and restored exactly in 664.5 s. A
+2026-11-03 rerun exceeded the declared 900 s limit; both results are retained in
+[corpus evidence](docs/v0.6-corpus.md) and
+[local smoke](docs/local-smoke-2026-11-03.md). The [metadata/path matrix](docs/v0.6-matrix.md)
+now records supported, rejected and lossy cases on Windows/NTFS and
+Ubuntu 22.04/ext4. These remain prerequisites, not a beta qualification. RC is
+not reached; the gate matrix is in [RC readiness](docs/rc-readiness.md).
 
 ## Components
 
@@ -191,8 +211,6 @@ made. Supported backup-only 0.9 precedes full 1.0 if sync remains unqualified.
 - [Additions catalog](https://github.com/jkalend/project-planning/blob/main/components/additions-catalog.md)
 - [PersonalMesh research](https://github.com/jkalend/project-planning/blob/main/research/personalmesh-research.md)
 - [Confidence assessment](https://github.com/jkalend/project-planning/blob/main/research/research-quality-2026-10-18.md)
-
-## License
 
 ## License
 

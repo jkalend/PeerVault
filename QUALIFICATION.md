@@ -23,7 +23,19 @@ scripts/evidence.py             append-only evidence exporter/verifier
 scripts/v01-smoke.py            repeatable V0.1 capture/restore smoke
 scripts/v02-kit-smoke.py        RecoveryKit inventory/full-read smoke
 scripts/v02-clean-drill.py      author-only copy/source-removal/recovery drill
-scripts/v03-peer-copy.py        one-peer additive copy record drill
+scripts/v03-peer-copy.py     one-peer additive copy record drill
+scripts/v05-retention.py     retention preview/apply/peer-root/mass-change drill
+scripts/v06-matrix.py        metadata/path capability matrix
+scripts/v06-cancel.py        cancellation and repository serialization drill
+scripts/v06-cross-os.py      Windows/Linux bidirectional portable-subset restore
+scripts/v08-ipc.py           owner-only named-pipe/Unix-socket IPC drill
+scripts/v09-measure.py       repeated recovery measurement harness
+scripts/install-scheduler.ps1  Windows Task Scheduler installer (S4U)
+scripts/install-scheduler.sh   Linux user systemd timer installer (run via bash)
+scripts/uninstall-scheduler.*  scheduler cleanup
+scripts/sbom.py              CycloneDX SBOM generator
+scripts/release-manifest.py  retained-artifact evidence manifest
+scripts/verify-package.py    archive/checksum/SBOM release verifier
 scripts/windows/               clean-Windows VM harness and test-media builder
 tests/fixtures/v1-a.json        revision 1 golden
 tests/fixtures/v1-b.json        revision 2 golden
@@ -119,14 +131,48 @@ lab path is QEMU/SeaBIOS with `autounattend-bios.xml`; the VMware/OVMF UEFI path
 remains open. This drill is experimental clean-VM evidence, not a CP2 or V0.2
 gate pass.
 
-## Preview retention
+## Preview and apply retention
 
 ```text
-peervault retention-preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --password-file <secret>
+peervault retention state-init --repository <repo> --backend .tools/restic --state <state.json> --password-file <secret>
+peervault retention preview --repository <repo> --backend .tools/restic --policy docs/policies/retention-preview-v1.json --state <state.json> --password-file <secret> > plan.json
+peervault retention apply --plan plan.json --backend .tools/restic --state <state.json> --password-file <secret>
 ```
 
-This is read-only. It never deletes snapshots or runs backend maintenance; see
-[V0.5 limits](docs/v0.5.md).
+`preview` is read-only. `apply` revalidates the bound plan under an owner lock and
+runs backend-native `restic forget --prune`; it refuses drift, expiry, a required
+peer root without state, and an unacknowledged mass-change pause. Record peer
+roots with `retention peer-record` and abandon one only through
+`retention peer-abandon`. See [V0.5 limits](docs/v0.5.md).
+
+Run the synthetic drill:
+
+```text
+python scripts/v05-retention.py --binary ./peervault --backend .tools/restic --root <new-root>
+```
+
+## Qualify metadata/path, cancellation and IPC
+
+```text
+python scripts/v06-matrix.py --binary ./peervault --backend .tools/restic --root <new-root>
+python scripts/v06-cancel.py --binary ./peervault --backend .tools/restic --root <new-root>
+python scripts/v08-ipc.py --binary ./peervault --backend .tools/restic --root <new-root>
+```
+
+The matrix records supported/rejected/lossy metadata cases. The cancellation
+drill interrupts a large capture and verifies the prior snapshot. The IPC drill
+starts the owner-only agent, exercises refusal/version paths, runs history and
+schedule-status, and restarts the endpoint. Cross-user denial and independent
+hardware remain open.
+
+## Measure repeated recovery
+
+```text
+python scripts/v09-measure.py --binary ./peervault --backend .tools/restic --root <new-root> --size-mib 64 --runs 5
+```
+
+This is a descriptive same-host measurement, not the 14-day beta or an RPO/RTO
+commitment. It does not control OS page cache and does not measure RSS/CPU.
 
 ## Run the V0.6 corpus prerequisite
 

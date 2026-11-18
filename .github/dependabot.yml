@@ -1,9 +1,7 @@
 version: 2
+# Cargo updates are handled by the maintainer: the Components path dependency
+# is outside this repository, so Dependabot cannot resolve the manifest.
 updates:
-  - package-ecosystem: cargo
-    directory: /
-    schedule:
-      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:

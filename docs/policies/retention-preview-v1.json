@@ -1,1 +1,1 @@
-{"schema_version":1,"keep_last":1,"keep_tagged":[],"keep_snapshots":[],"minimum_keep":1}
+{"schema_version":1,"keep_last":1,"keep_tagged":[],"keep_snapshots":[],"minimum_keep":1,"floor_points":3,"floor_days":30,"required_peers":[]}

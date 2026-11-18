@@ -12,6 +12,8 @@ import platform
 import stat
 import tarfile
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -19,6 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 ARCHIVE_LIMIT = 128 * 1024 * 1024
 BINARY_LIMIT = 128 * 1024 * 1024
 TAR_LIMIT = BINARY_LIMIT + 8 * 1024 * 1024
+DOWNLOAD_ATTEMPTS = 3
+DOWNLOAD_TIMEOUT_SECONDS = 120
 
 
 def bounded_read(stream, limit):
@@ -121,15 +125,31 @@ def select_asset(pin, system):
     return asset
 
 
+def download(asset, opener=urllib.request.urlopen):
+    request = urllib.request.Request(asset["url"], headers={"User-Agent": "PeerVault-R0"})
+    last_error = None
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            with opener(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
+                return bounded_read(response, ARCHIVE_LIMIT)
+        except urllib.error.HTTPError as error:
+            if 400 <= error.code < 500 and error.code not in (408, 429):
+                raise
+            last_error = error
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            last_error = error
+        if attempt < DOWNLOAD_ATTEMPTS:
+            time.sleep(2 * attempt)
+    raise last_error
+
+
 def install(name, pin, system, destination, opener=urllib.request.urlopen):
     asset = select_asset(pin, system)
     archive = destination / asset["url"].rsplit("/", 1)[1]
     if archive.exists():
         data = read_cache(archive)
     else:
-        request = urllib.request.Request(asset["url"], headers={"User-Agent": "PeerVault-R0"})
-        with opener(request, timeout=60) as response:
-            data = bounded_read(response, ARCHIVE_LIMIT)
+        data = download(asset, opener)
     check_digest(data, asset["sha256"])
     binary = extract(data, asset)
     check_digest(binary, asset["executable_sha256"])

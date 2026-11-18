@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::{fs, path::PathBuf};
 
 mod agent;
+mod ipc;
 mod pins;
 mod production;
 mod recovery_kit;
@@ -16,6 +17,9 @@ mod schedule;
     about = "Experimental PeerVault recovery tools. R0 qualification and V0.1 local capture; no supported release claim."
 )]
 struct Cli {
+    /// Emit a bounded JSON error document on stdout instead of human stderr.
+    #[arg(long, global = true)]
+    error_json: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -132,16 +136,10 @@ enum Commands {
         #[command(subcommand)]
         action: RecoveryKitAction,
     },
-    /// Preview retention decisions without deleting or maintaining the repository.
-    RetentionPreview {
-        #[arg(long)]
-        repository: PathBuf,
-        #[arg(long)]
-        backend: PathBuf,
-        #[arg(long)]
-        policy: PathBuf,
-        #[arg(long)]
-        password_file: Option<PathBuf>,
+    /// Preview or execute the owner-reviewed retention plan.
+    Retention {
+        #[command(subcommand)]
+        action: RetentionAction,
     },
     /// Report owner-scheduled verification/scratch-restore freshness.
     ScheduleStatus {
@@ -157,12 +155,99 @@ enum Commands {
         #[arg(long)]
         state: PathBuf,
     },
-    /// Serve owner-only scheduler status/tick requests over inherited stdio.
+    /// Serve owner-only IPC requests on a named pipe (Windows) or Unix socket.
     Agent {
+        /// Exact pipe name or absolute Unix socket path. Never a TCP endpoint.
         #[arg(long)]
-        config: PathBuf,
+        endpoint: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum RetentionAction {
+    /// Create the owner state file and record the current recovery baseline.
+    StateInit {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
         #[arg(long)]
         state: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Replace the mass-change baseline after explicit owner review.
+    Rebaseline {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+        #[arg(long)]
+        reason: String,
+    },
+    /// Record one verified peer recovery root in owner state.
+    PeerRecord {
+        #[arg(long)]
+        state: PathBuf,
+        #[arg(long)]
+        peer_id: String,
+        #[arg(long)]
+        peer_repository_id: String,
+        #[arg(long)]
+        snapshot: String,
+        #[arg(long)]
+        capture_id: Option<String>,
+        #[arg(long)]
+        oracle_manifest: Option<String>,
+        #[arg(long)]
+        key_version: String,
+        /// Existing report proving the exact copy's full read and clean restore.
+        #[arg(long)]
+        evidence: PathBuf,
+        /// Observed verification time; defaults to now.
+        #[arg(long)]
+        verified_unix_seconds: Option<u64>,
+    },
+    /// Explicitly abandon a peer root after reviewing lost copy coverage.
+    PeerAbandon {
+        #[arg(long)]
+        state: PathBuf,
+        #[arg(long)]
+        peer_id: String,
+        #[arg(long)]
+        reason: String,
+    },
+    /// Preview exact keep/delete decisions and bind an execution token.
+    Preview {
+        #[arg(long)]
+        repository: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        policy: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+    },
+    /// Revalidate a preview under lock and run backend-native forget/prune.
+    Apply {
+        /// Preview JSON written by `retention preview`; never hand-edit it.
+        #[arg(long)]
+        plan: PathBuf,
+        #[arg(long)]
+        backend: PathBuf,
+        #[arg(long)]
+        state: PathBuf,
+        #[arg(long)]
+        password_file: Option<PathBuf>,
+        /// Required when the preview reports a mass-change pause or unknown baseline.
+        #[arg(long)]
+        ack_mass_change: bool,
     },
 }
 
@@ -200,15 +285,30 @@ fn main() {
         eprintln!("peervault: cannot install cancellation handler");
         std::process::exit(if process::cancelled() { 130 } else { 1 });
     }
-    if let Err(error) = run() {
-        let code = production::exit_code(&error);
-        eprintln!("peervault: {error:#}");
-        std::process::exit(if process::cancelled() { 130 } else { code });
+    let cli = Cli::parse();
+    let error_json = cli.error_json;
+    if let Err(error) = run(cli) {
+        let code = if process::cancelled() {
+            130
+        } else {
+            production::exit_code(&error)
+        };
+        if error_json {
+            let _ = production::print_json(&serde_json::json!({
+                "schema_version": 1,
+                "result": "fail",
+                "code": code,
+                "message": format!("{error:#}"),
+            }));
+        } else {
+            eprintln!("peervault: {error:#}");
+        }
+        std::process::exit(code);
     }
 }
 
-fn run() -> Result<()> {
-    match Cli::parse().command {
+fn run(cli: Cli) -> Result<()> {
+    match cli.command {
         Commands::Fixture {
             directory,
             revision,
@@ -334,15 +434,87 @@ fn run() -> Result<()> {
             )
             .map_err(production::operation_failure)?;
         }
-        Commands::RetentionPreview {
-            repository,
-            backend,
-            policy,
-            password_file,
-        } => {
-            retention::preview(&repository, &backend, &policy, password_file.as_deref())
-                .map_err(production::operation_failure)?;
-        }
+        Commands::Retention { action } => match action {
+            RetentionAction::StateInit {
+                repository,
+                backend,
+                state,
+                password_file,
+            } => retention::state_init(&repository, &backend, &state, password_file.as_deref())
+                .map_err(production::operation_failure)?,
+            RetentionAction::Rebaseline {
+                repository,
+                backend,
+                state,
+                password_file,
+                reason,
+            } => retention::rebaseline(
+                &repository,
+                &backend,
+                &state,
+                password_file.as_deref(),
+                &reason,
+            )
+            .map_err(production::operation_failure)?,
+            RetentionAction::PeerRecord {
+                state,
+                peer_id,
+                peer_repository_id,
+                snapshot,
+                capture_id,
+                oracle_manifest,
+                key_version,
+                evidence,
+                verified_unix_seconds,
+            } => retention::peer_record(
+                &state,
+                retention::PeerRecordInput {
+                    peer_id: &peer_id,
+                    peer_repository_id: &peer_repository_id,
+                    snapshot: &snapshot,
+                    capture_id: capture_id.as_deref(),
+                    oracle_manifest: oracle_manifest.as_deref(),
+                    key_version: &key_version,
+                    evidence: &evidence,
+                    verified_unix_seconds,
+                },
+            )
+            .map_err(production::operation_failure)?,
+            RetentionAction::PeerAbandon {
+                state,
+                peer_id,
+                reason,
+            } => retention::peer_abandon(&state, &peer_id, &reason)
+                .map_err(production::operation_failure)?,
+            RetentionAction::Preview {
+                repository,
+                backend,
+                policy,
+                state,
+                password_file,
+            } => retention::preview(
+                &repository,
+                &backend,
+                &policy,
+                &state,
+                password_file.as_deref(),
+            )
+            .map_err(production::operation_failure)?,
+            RetentionAction::Apply {
+                plan,
+                backend,
+                state,
+                password_file,
+                ack_mass_change,
+            } => retention::apply(
+                &plan,
+                &backend,
+                &state,
+                password_file.as_deref(),
+                ack_mass_change,
+            )
+            .map_err(production::operation_failure)?,
+        },
         Commands::ScheduleStatus { config, state } => {
             let report = schedule::status(&config, &state)?;
             schedule::print_report(&report)?;
@@ -351,8 +523,8 @@ fn run() -> Result<()> {
             let report = schedule::tick_once(&config, &state)?;
             schedule::print_report(&report)?;
         }
-        Commands::Agent { config, state } => {
-            agent::serve(&config, &state)?;
+        Commands::Agent { endpoint } => {
+            agent::serve(&endpoint)?;
         }
         Commands::RecoveryKit { action } => match action {
             RecoveryKitAction::Generate {
