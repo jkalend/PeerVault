@@ -2,7 +2,8 @@
 
 Status: **not releasable.** This checklist makes the remaining gates explicit and
 separates code work from human/elapsed evidence. Do not publish an artifact while
-any P0 row is open.
+any P0 row is open. The verified candidate bytes and hashes are in
+[release-candidate.md](release-candidate.md).
 
 ## Release identity
 
