@@ -22,14 +22,14 @@ requires a new candidate.
 
 | P | Gate | Status | Required evidence |
 |---|---|---|---|
-| P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44386964143` passed package verification without override |
+| P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44394752544` passed package verification without override |
 | P0 | Independent security review | **internal review complete; external open** | internal findings F1–F9 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
 | P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
 | P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota drill preserves the baseline and leaves no complete target; physical disk-full, denied access and index rebuild open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
-| P0 | Clean Ubuntu 24.04 | not started | clean install/ext4 capture/verify/restore and copy drill; WSL2 22.04 is diagnostic only |
+| P0 | Clean Ubuntu 24.04 | partial | V0.1 and matrix pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |
 | P0 | Independent hardware/media | not started | source disk absent, distinct named media, recovery from peer plus separately held keys |
 | P0 | Publisher verification | partial | checksum sidecars exist; signing key/fingerprint and published verification instructions outside the repo |
 | P0 | Owner go/no-go | not started | signed decision against the exact artifact/evidence manifest |

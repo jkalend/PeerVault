@@ -16,7 +16,7 @@ marked passed from source presence, CI definitions or a partial drill.
 | V0.3 | one-peer additive copy record, source removal, peer full read, clean restore | Windows + Ubuntu local-filesystem drills | no authenticated transport/pairing/keyless receiver or independent hardware |
 | V0.4 | backup-only 0.9 decision | ADR 0002 | supported sync intentionally not claimed |
 | V0.5 | preview/apply with state generation, owner lock, peer-root pins, floors, mass-change pause and backend-native forget/prune | unit tests + same-host drill; stale-plan replay, mass-change refusal and exact post-apply restore | independent security review, concurrent capture/restore, disk-full/kill-at-phase, clock/listing and remote-peer cases open |
-| V0.6 | 5 GiB/50k corpus prerequisite; metadata/path matrix; cancellation; bidirectional cross-OS; previous-commit upgrade/rollback; quota-style capacity drill | `docs/v0.6-corpus.md`, `docs/v0.6-matrix.md`; Windows NTFS + Ubuntu 22.04 WSL2 ext4 | released-artifact upgrade, power loss, physical disk-full/index rebuild, target Ubuntu 24.04, independent beta open |
+| V0.6 | 5 GiB/50k corpus prerequisite; metadata/path matrix; cancellation; bidirectional cross-OS; previous-commit upgrade/rollback; quota-style capacity; clean Ubuntu 24.04 container | `docs/v0.6-corpus.md`, `docs/v0.6-matrix.md`; Windows NTFS, Ubuntu 22.04 WSL2 and `ubuntu:24.04` container | released-artifact upgrade, power loss, physical disk-full/index rebuild, clean Ubuntu 24.04 host, independent beta open |
 | V0.7 | deferred | ADR 0002 | not qualified |
 | V0.8 | scheduler/status core, owner-only IPC, desktop operations, OS scheduler installers, DPAPI/systemd credentials, OS lock release, free-space preflight | unit tests; IPC, schedule/clock/quota/lock, DPAPI drills; Task Scheduler/systemd dry runs; C# build | retention apply, backend-journal restart reconciliation, physical storage stress, cross-user/task identity, accessibility and second-operator evidence open |
 | V0.9 | five-run same-host capture/full-read/restore measurement | `docs/v0.9-measure.md` (64 MiB, debug and release builds) | 14-day/three-clean-drill beta, RSS/CPU and independent evidence missing |
@@ -39,10 +39,11 @@ marked passed from source presence, CI definitions or a partial drill.
   an operation allowlist and desktop capture/history/verify/restore/preview.
 - A five-run repeated capture/full-read/restore measurement with raw
   observations and descriptive median/p95.
-- CI run `44386964143` on `26164ce` passed on windows-2025 and ubuntu-24.04:
+- CI run `44394752544` on `c9da4c6` passed on windows-2025 and ubuntu-24.04:
   R0 smoke, V0.1 restore, V0.2 kit, V0.3 peer record, V0.5 retention, V0.6
   matrix/cancellation/upgrade/capacity, V0.8 IPC/schedule/DPAPI, package
-  verification without a license override.
+  verification without a license override. The earlier security-fix run
+  `44393530149` also passed.
 
 ## Blocking RC
 
