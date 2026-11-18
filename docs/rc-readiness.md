@@ -39,7 +39,7 @@ marked passed from source presence, CI definitions or a partial drill.
   an operation allowlist and desktop capture/history/verify/restore/preview.
 - A five-run repeated capture/full-read/restore measurement with raw
   observations and descriptive median/p95.
-- CI run `44394752544` on `c9da4c6` passed on windows-2025 and ubuntu-24.04:
+- CI run `44396857979` on `d18d0b3` passed on windows-2025 and ubuntu-24.04:
   R0 smoke, V0.1 restore, V0.2 kit, V0.3 peer record, V0.5 retention, V0.6
   matrix/cancellation/upgrade/capacity, V0.8 IPC/schedule/DPAPI, package
   verification without a license override. The earlier security-fix run
