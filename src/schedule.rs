@@ -2,12 +2,14 @@
 //!
 //! One local job specification and one owner state file. `tick` runs due
 //! verification or scratch-restore commands through the normal CLI, whose
-//! bounded process runner owns child trees. A lock prevents two ticks from
-//! running concurrently; a stale lock is never cleared by age. State is
-//! atomically replaced and becomes owner-only on Unix.
+//! bounded process runner owns child trees. An OS-owned file lock prevents two
+//! ticks from running concurrently and is released by process death; there is no
+//! age-based stale-lock clearing. State is atomically replaced and becomes
+//! owner-only on Unix.
 
 use anyhow::{Context, Result, bail, ensure};
 use bailiff::process::bounded;
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -115,13 +117,7 @@ pub struct StatusReport {
 }
 
 struct Lock {
-    path: PathBuf,
-}
-
-impl Drop for Lock {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
+    _file: File,
 }
 
 fn unix_now() -> Result<u64> {
@@ -274,20 +270,26 @@ fn write_state(path: &Path, state: &ScheduleState) -> Result<()> {
 
 fn acquire_lock(state_path: &Path) -> Result<Lock> {
     let lock_path = state_path.with_extension("lock");
-    let mut file = OpenOptions::new()
+    let file = OpenOptions::new()
+        .read(true)
         .write(true)
-        .create_new(true)
+        .create(true)
+        .truncate(false)
         .open(&lock_path)
-        .with_context(|| {
-            format!(
-                "schedule state is locked; another tick may be running ({})",
+        .with_context(|| format!("cannot open schedule lock {}", lock_path.display()))?;
+    state_permissions(&lock_path)?;
+    if let Err(error) = FileExt::try_lock_exclusive(&file) {
+        let busy = error.kind() == std::io::ErrorKind::WouldBlock
+            || (cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)));
+        if busy {
+            bail!(
+                "schedule state is busy; another tick holds {}",
                 lock_path.display()
-            )
-        })?;
-    writeln!(file, "pid={} time={}", std::process::id(), unix_now()?)
-        .context("cannot write schedule lock")?;
-    file.sync_all().context("cannot sync schedule lock")?;
-    Ok(Lock { path: lock_path })
+            );
+        }
+        return Err(error).context("cannot acquire schedule lock");
+    }
+    Ok(Lock { _file: file })
 }
 
 fn classify(job: &JobSpec, state: &JobState, now: u64) -> &'static str {

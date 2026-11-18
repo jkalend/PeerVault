@@ -9,6 +9,22 @@ import secrets
 import subprocess
 import time
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
+
+def hold_lock(path):
+    stream = path.open("a+b")
+    stream.write(b"x")
+    stream.flush()
+    if os.name == "nt":
+        msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    return stream
+
 
 def environment(extra=None):
     env = {
@@ -171,6 +187,30 @@ def main():
     )
     assert env["jobs"][0]["last_result"] == "pass", env
 
+    lock_state = root / "lock-state.json"
+    lock = hold_lock(lock_state.with_suffix(".lock"))
+    try:
+        busy = run(
+            binary,
+            ["schedule-tick", "--config", str(env_config), "--state", str(lock_state)],
+            extra_env={"PEERVAULT_PASSWORD_FILE": str(secret)},
+        )
+        assert busy.returncode != 0, "tick ignored an OS-held schedule lock"
+        assert "busy" in (busy.stderr + busy.stdout), busy.stderr
+    finally:
+        lock.close()
+    resumed = json.loads(
+        require(
+            run(
+                binary,
+                ["schedule-tick", "--config", str(env_config), "--state", str(lock_state)],
+                extra_env={"PEERVAULT_PASSWORD_FILE": str(secret)},
+            ),
+            "tick after lock release",
+        ).stdout
+    )
+    assert resumed["jobs"][0]["last_result"] == "pass", resumed
+
     restore_root = root / "scratch"
     restore_root.mkdir()
     restore_config = root / "jobs-restore.json"
@@ -212,6 +252,7 @@ def main():
             {
                 "result": "pass",
                 "credential_env": True,
+                "lock_released_after_holder_exit": True,
                 "missed_runs": missed["jobs"][0]["missed_runs"],
                 "clock_anomaly": True,
                 "quota_refusal": True,
