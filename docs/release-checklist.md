@@ -23,10 +23,10 @@ requires a new candidate.
 | P | Gate | Status | Required evidence |
 |---|---|---|---|
 | P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44396857979` passed package verification without override |
-| P0 | Independent security review | **internal review complete; external open** | internal findings F1–F9 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
-| P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
+| P0 | Independent security review | **two internal reviews complete; external open** | internal findings F1–F12 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
+| P0 | Power-loss / kill-at-phase | **pass (scoped VM)** | QEMU/TCG Ubuntu guest hard-killed during capture; ext4 recovery, prior snapshot verify and exact restore pass; physical hardware and other phases remain additional coverage |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
-| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota and 64 MiB tmpfs ENOSPC drills preserve the baseline and leave no complete target; physical media failure, denied access and index rebuild open |
+| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE, 64 MiB tmpfs and 64 MiB ext4 loopback ENOSPC drills preserve the baseline and leave no complete target; physical media failure, denied access and index rebuild open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
 | P0 | Clean Ubuntu 24.04 | partial | V0.1, matrix, IPC and scheduler pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |
@@ -71,7 +71,7 @@ Package and verify:
 cargo build --release --locked
 python scripts/package-notices.py dist/THIRD-PARTY-NOTICES.txt
 python scripts/sbom.py --output dist/sbom.cdx.json
-python scripts/release-manifest.py --package dist/peervault --sbom dist/sbom.cdx.json --output dist/release-manifest.json --gate fmt=pass --gate clippy=pass --gate tests=pass
+python scripts/release-manifest.py --package dist/peervault --desktop-dir dist/desktop --sbom dist/sbom.cdx.json --output dist/release-manifest.json --gate fmt=pass --gate clippy=pass --gate tests=pass
 python scripts/verify-package.py <archive>
 ```
 

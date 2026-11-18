@@ -35,6 +35,7 @@ REQUIRED = {
     "scripts/v08-secret.py",
     "scripts/v06-capacity.py",
     "scripts/v06-diskfull.py",
+    "scripts/v06-powerloss.sh",
     "scripts/v06-upgrade.py",
     "scripts/secret-store.ps1",
     "scripts/task-run.ps1",
@@ -141,12 +142,18 @@ def main():
         raise SystemExit("unsupported release manifest")
     if manifest.get("source", {}).get("dirty") and not arguments.allow_dirty:
         raise SystemExit("release manifest was produced from a dirty tree")
+    artifact_names = set()
     for artifact in manifest.get("artifacts", []):
+        artifact_names.add(artifact["name"])
         data = member_bytes(archive, artifact["name"])
         if data is None:
             raise SystemExit(f"manifest artifact is missing from package: {artifact['name']}")
         if len(data) != artifact["size_bytes"] or hashlib.sha256(data).hexdigest() != artifact["sha256"]:
             raise SystemExit(f"manifest artifact does not match packaged bytes: {artifact['name']}")
+    for name in names:
+        executable = name.endswith((".exe", ".dll", ".so")) or name in ("peervault", "peervault.exe")
+        if executable and name not in artifact_names:
+            raise SystemExit(f"executable member is absent from the release manifest: {name}")
     sbom_entry = manifest.get("sbom", {})
     if (
         sbom_entry.get("name") != "sbom.cdx.json"

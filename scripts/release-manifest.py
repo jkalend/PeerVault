@@ -41,6 +41,7 @@ def git(*arguments):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--package", type=Path, action="append", required=True)
+    parser.add_argument("--desktop-dir", type=Path)
     parser.add_argument("--sbom", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--gate", action="append", default=[], help="name=pass|fail|partial|unknown")
@@ -58,6 +59,15 @@ def main():
     with (ROOT / "Cargo.toml").open("rb") as stream:
         version = tomllib.load(stream)["package"]["version"]
     pins = json.loads((ROOT / "backend-lock.json").read_text(encoding="utf-8"))
+    artifacts = [artifact(path) for path in arguments.package]
+    if arguments.desktop_dir:
+        if not arguments.desktop_dir.is_dir():
+            raise SystemExit(f"desktop payload directory not found: {arguments.desktop_dir}")
+        for path in sorted(arguments.desktop_dir.rglob("*")):
+            if path.is_file():
+                entry = artifact(path)
+                entry["name"] = f"desktop/{path.relative_to(arguments.desktop_dir).as_posix()}"
+                artifacts.append(entry)
     manifest = {
         "schema_version": 1,
         "created_unix_seconds": int(time.time()),
@@ -80,7 +90,7 @@ def main():
             for name, pin in pins.items()
             if name != "schema_version"
         },
-        "artifacts": [artifact(path) for path in arguments.package],
+        "artifacts": artifacts,
         "sbom": artifact(arguments.sbom),
         "gates": gates,
         "limitations": [

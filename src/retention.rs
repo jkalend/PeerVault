@@ -728,10 +728,23 @@ fn protected_roots(pins: &[PeerPin]) -> BTreeMap<String, String> {
         .collect()
 }
 
-fn newest_restorable(snapshots: &[SnapshotRef]) -> Result<Option<SnapshotRef>> {
+fn future_cutoff(now_unix: u64) -> Option<i64> {
+    i64::try_from(now_unix)
+        .ok()
+        .and_then(|seconds| seconds.checked_mul(1_000_000_000))
+        .and_then(|nanos| nanos.checked_add(300_000_000_000))
+}
+
+fn is_future(snapshot: &SnapshotRef, now_unix: u64) -> Result<bool> {
+    Ok(future_cutoff(now_unix)
+        .is_some_and(|cutoff| instant(&snapshot.time).is_ok_and(|timestamp| timestamp > cutoff)))
+}
+
+fn newest_restorable(snapshots: &[SnapshotRef], now_unix: u64) -> Result<Option<SnapshotRef>> {
     let mut restorable: Vec<(i64, SnapshotRef)> = snapshots
         .iter()
         .filter(|snapshot| snapshot.oracle_manifest.is_some())
+        .filter(|snapshot| !is_future(snapshot, now_unix).unwrap_or(true))
         .map(|snapshot| Ok((instant(&snapshot.time)?, snapshot.clone())))
         .collect::<Result<_>>()?;
     restorable.sort_by_key(|(timestamp, _)| *timestamp);
@@ -743,8 +756,9 @@ fn baseline_from_newest(
     repository: &Path,
     credential: &Credential,
     snapshots: &[SnapshotRef],
+    now_unix: u64,
 ) -> Result<Option<SnapshotBaseline>> {
-    let Some(snapshot) = newest_restorable(snapshots)? else {
+    let Some(snapshot) = newest_restorable(snapshots, now_unix)? else {
         return Ok(None);
     };
     let manifest_id = snapshot
@@ -768,6 +782,7 @@ fn mass_change(
     credential: &Credential,
     state: &RetentionState,
     snapshots: &[SnapshotRef],
+    now_unix: u64,
 ) -> MassChangeReport {
     let thresholds = format!(
         "{MASS_CHANGE_MIN_FILES} files and {MASS_CHANGE_FILE_PERCENT}% files, or {MASS_CHANGE_BYTE_PERCENT}% bytes"
@@ -778,7 +793,7 @@ fn mass_change(
             .last_validated
             .as_ref()
             .map(|baseline| baseline.snapshot_id.clone()),
-        current_snapshot: newest_restorable(snapshots)
+        current_snapshot: newest_restorable(snapshots, now_unix)
             .ok()
             .flatten()
             .map(|snapshot| snapshot.id),
@@ -792,9 +807,20 @@ fn mass_change(
     let Some(baseline) = &state.last_validated else {
         return unknown("no validated baseline");
     };
-    let Ok(Some(current)) = newest_restorable(snapshots) else {
+    let Ok(Some(current)) = newest_restorable(snapshots, now_unix) else {
         return unknown("no restorable snapshot");
     };
+    let Some(baseline_ref) = snapshots
+        .iter()
+        .find(|snapshot| snapshot.id == baseline.snapshot_id)
+    else {
+        return unknown("validated baseline snapshot is missing");
+    };
+    match is_future(baseline_ref, now_unix) {
+        Ok(true) => return unknown("validated baseline has a future timestamp"),
+        Err(_) => return unknown("validated baseline timestamp is invalid"),
+        Ok(false) => {}
+    }
     if current.id == baseline.snapshot_id {
         return MassChangeReport {
             status: "not-triggered".into(),
@@ -949,28 +975,29 @@ fn evidence_digest(
         snapshot == input.snapshot,
         "peer evidence snapshot does not match"
     );
-    if let Some(manifest) = value
+    let manifest = value
         .get("oracle_manifest")
         .or_else(|| value.get("manifest_snapshot_id"))
         .and_then(|v| v.as_str())
-    {
-        ensure!(
-            input.oracle_manifest == Some(manifest),
-            "peer evidence oracle does not match"
-        );
-    }
-    let passed = value.get("state").and_then(|v| v.as_str()) == Some("clean-restored")
-        || value.get("result").and_then(|v| v.as_str()) == Some("pass");
-    ensure!(passed, "peer evidence does not report a completed recovery");
-    if let Some(steps) = value.get("steps").and_then(|v| v.as_array()) {
-        ensure!(
+        .context("peer evidence lacks an oracle ID")?;
+    ensure!(
+        input.oracle_manifest == Some(manifest),
+        "peer evidence oracle does not match"
+    );
+    let step_passed = value
+        .get("steps")
+        .and_then(|v| v.as_array())
+        .is_some_and(|steps| {
             steps.iter().any(|step| {
                 step.get("state").and_then(|v| v.as_str()) == Some("clean-restored")
                     && step.get("result").and_then(|v| v.as_str()) == Some("pass")
-            }),
-            "peer evidence step trail has no passing clean restore"
-        );
-    }
+            })
+        });
+    let passed = value.get("state").and_then(|v| v.as_str()) == Some("clean-restored")
+        || (value.get("verification").and_then(|v| v.as_str()) == Some("manifest-hash")
+            && value.get("result").and_then(|v| v.as_str()) == Some("pass"))
+        || step_passed;
+    ensure!(passed, "peer evidence does not report a completed recovery");
     let verified = value
         .get("verified_unix_seconds")
         .or_else(|| value.get("updated_unix_seconds"))
@@ -1018,7 +1045,7 @@ pub fn state_init(
         repository_id,
         generation: 1,
         updated_unix_seconds: now,
-        last_validated: baseline_from_newest(&backend, &repository, &credential, &snapshots)?,
+        last_validated: baseline_from_newest(&backend, &repository, &credential, &snapshots, now)?,
         peer_roots: Vec::new(),
         history: vec![ExecutionRecord {
             preview_id: "state-init".into(),
@@ -1055,7 +1082,8 @@ pub fn rebaseline(
     validate_repository_binding(&state, &repository, &repository_id)?;
     let snapshots = production::snapshot_refs(&backend, &repository, &credential)?;
     let now = unix_now()?;
-    state.last_validated = baseline_from_newest(&backend, &repository, &credential, &snapshots)?;
+    state.last_validated =
+        baseline_from_newest(&backend, &repository, &credential, &snapshots, now)?;
     sync_state(
         &mut state,
         now,
@@ -1197,7 +1225,7 @@ pub fn preview(
     }
     let now = unix_now()?;
     let selection = select(&policy, &snapshots, &roots, now)?;
-    let mass_change = mass_change(&backend, &repository, &credential, &state, &snapshots);
+    let mass_change = mass_change(&backend, &repository, &credential, &state, &snapshots, now);
     let no_peer_root = policy.required_peers.is_empty();
     let future_timestamp = selection
         .protected
@@ -1353,7 +1381,7 @@ pub fn apply(
             == decision_keys(&plan.delete_candidates, "delete")?,
         "delete decisions drifted since preview"
     );
-    let mass_change = mass_change(&backend, &repository, &credential, &state, &snapshots);
+    let mass_change = mass_change(&backend, &repository, &credential, &state, &snapshots, now);
     ensure!(
         mass_change == plan.mass_change,
         "mass-change evidence drifted since preview"
@@ -1537,6 +1565,7 @@ pub fn apply(
         &repository,
         &credential,
         &remaining,
+        now,
     ) {
         Ok(baseline) => baseline,
         Err(error) => {
@@ -1721,6 +1750,18 @@ mod tests {
     }
 
     #[test]
+    fn newest_restorable_ignores_future_timestamps() -> Result<()> {
+        let old = snapshot(1, &[], true, "2026-11-01T00:00:00Z");
+        let future = snapshot(2, &[], true, "2030-01-01T00:00:00Z");
+        let now = now_seconds("2026-11-03T00:00:00Z");
+        let newest = newest_restorable(&[old.clone(), future.clone()], now)?
+            .expect("old snapshot should be restorable");
+        assert_eq!(newest.id, old.id);
+        assert!(is_future(&future, now)?);
+        Ok(())
+    }
+
+    #[test]
     fn future_timestamp_is_protected_and_does_not_consume_a_keep_slot() -> Result<()> {
         let old = snapshot(1, &[], true, "2026-11-01T00:00:00Z");
         let future = snapshot(2, &[], true, "2030-01-01T00:00:00Z");
@@ -1805,6 +1846,7 @@ mod tests {
         };
         write(serde_json::json!({
             "result": "pass",
+            "verification": "manifest-hash",
             "peer_repository_id": repository,
             "snapshot_id": snapshot,
             "manifest_snapshot_id": manifest,

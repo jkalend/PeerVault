@@ -25,12 +25,13 @@ supported-release gates.
 | V0.6 cross-OS restore | pass | Windows->Linux and Linux->Windows through WSL2, exact 6-file/2-directory oracle |
 | V0.6 previous-candidate upgrade | pass | old commit -> new reads/restores old; old reads/restores new |
 | V0.6 quota-style capacity | pass | limited capture/restore fail without a complete target; baseline restores |
-| V0.6 filesystem-full | pass | 64 MiB tmpfs, 128 MiB addition: capture fails, prior snapshot restores exactly |
+| V0.6 filesystem-full | pass | 64 MiB tmpfs and ext4 loopback, 128 MiB addition: capture fails, prior snapshot restores exactly |
+| V0.6 hard-power-off | pass | QEMU/TCG Ubuntu guest killed during capture; ext4 recovery and exact baseline restore |
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
 | V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
 | Clean Ubuntu 24.04 container | pass | fresh `ubuntu:24.04`; V0.1, matrix, IPC and scheduler pass; container shares host kernel |
-| Internal security review | fixes applied | F1–F9 dispositions in `security-review-2026-11-18.md`; external review open |
+| Internal security review | fixes applied | F1–F12 dispositions in `security-review-2026-11-18.md`; external review open |
 | CI on `d18d0b3` | pass | run `44396857979`: windows-2025 and ubuntu-24.04, including package license verification |
 
 `cargo test --all-targets` passed 23 tests. `cargo clippy --all-targets -- -D
