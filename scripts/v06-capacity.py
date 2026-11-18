@@ -10,10 +10,14 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import resource
 import secrets
 import subprocess
 import sys
+
+try:
+    import resource
+except ImportError:  # Windows: the drill is skipped before using it.
+    resource = None
 
 
 def environment():
@@ -70,7 +74,7 @@ def tree(root):
 
 
 def main():
-    if os.name != "posix":
+    if os.name != "posix" or resource is None:
         print(json.dumps({"result": "skipped", "reason": "RLIMIT_FSIZE drill requires Unix"}))
         return
     parser = argparse.ArgumentParser(description=__doc__)
