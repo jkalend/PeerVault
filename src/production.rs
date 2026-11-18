@@ -241,22 +241,29 @@ pub(crate) struct Credential {
 impl Credential {
     pub(crate) fn new(file: Option<&Path>) -> Result<Self> {
         if let Some(file) = file {
-            let metadata = fs::metadata(file).context("cannot read password file")?;
-            ensure!(metadata.is_file(), "password file must be a regular file");
-            ensure!(
-                (1..=8192).contains(&metadata.len()),
-                "password file must contain 1..=8192 bytes"
-            );
-            return Ok(Self {
-                file: Some(fs::canonicalize(file)?),
-            });
+            return Self::from_file(file);
+        }
+        if let Some(file) = std::env::var_os("PEERVAULT_PASSWORD_FILE") {
+            return Self::from_file(Path::new(&file));
         }
         let password = std::env::var("PEERVAULT_PASSWORD").unwrap_or_default();
         ensure!(
             !password.is_empty(),
-            "set PEERVAULT_PASSWORD or pass --password-file"
+            "set PEERVAULT_PASSWORD, PEERVAULT_PASSWORD_FILE or pass --password-file"
         );
         Ok(Self { file: None })
+    }
+
+    fn from_file(file: &Path) -> Result<Self> {
+        let metadata = fs::metadata(file).context("cannot read password file")?;
+        ensure!(metadata.is_file(), "password file must be a regular file");
+        ensure!(
+            (1..=8192).contains(&metadata.len()),
+            "password file must contain 1..=8192 bytes"
+        );
+        Ok(Self {
+            file: Some(fs::canonicalize(file)?),
+        })
     }
 
     fn apply(&self, command: &mut Command) {

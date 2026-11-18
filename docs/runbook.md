@@ -110,10 +110,34 @@ incident. Key rotation/rewrap is not part of this build.
 ## 11. Scheduled operation
 
 Run `schedule-tick` under the owner's OS scheduler with a dedicated account.
-Password material comes from an owner-only file (or a qualified platform secret
-store). `schedule-status` reports `unknown`, `fresh`, `stale`, `needs-attention`,
+`schedule-status` reports `unknown`, `fresh`, `stale`, `needs-attention`,
 `clock-anomaly` or `disabled`; a green state never overrides an offline peer,
 missing key or stale required copy.
+
+Windows DPAPI:
+
+```text
+powershell -File scripts/secret-store.ps1 -Action Store -SecretFile <plaintext> -ProtectedFile <secret.dpapi>
+powershell -File scripts/install-scheduler.ps1 -Core <peervault.exe> -Config <jobs.json> -State <state.json> -ProtectedSecret <secret.dpapi> -SecretPath <runtime-secret.txt>
+```
+
+Delete the plaintext after storing. The wrapper decrypts for one tick and removes
+the runtime file. Test the exact task account; S4U cannot read another user's
+DPAPI blob.
+
+Linux systemd credential:
+
+```text
+bash scripts/install-scheduler.sh --core <peervault> --config <jobs.json> --state <state.json> --credential <owner-only-secret> --every 15min
+```
+
+The job config may omit `password_file`; `PEERVAULT_PASSWORD_FILE` points at the
+systemd credential. Do not put the secret in the unit or command line.
+
+For a restore job, set `minimum_free_bytes` to the declared scratch capacity. A
+low-space refusal creates no destination and leaves the job `needs-attention`.
+Physical disk-full behavior still requires the qualified capacity drill; do not
+treat the preflight as proof against every storage failure.
 
 ## 12. Uninstall
 

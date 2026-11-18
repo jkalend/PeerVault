@@ -39,11 +39,17 @@ pub struct JobSpec {
     pub kind: JobKind,
     pub repository: PathBuf,
     pub backend: PathBuf,
-    pub password_file: PathBuf,
+    /// Explicit owner-only secret file. Omit to use PEERVAULT_PASSWORD_FILE
+    /// (for example a systemd credential) or PEERVAULT_PASSWORD.
+    #[serde(default)]
+    pub password_file: Option<PathBuf>,
     #[serde(default)]
     pub snapshot: Option<String>,
     #[serde(default)]
     pub destination_root: Option<PathBuf>,
+    /// Refuse a scratch restore when the destination has less free space.
+    #[serde(default)]
+    pub minimum_free_bytes: u64,
     pub interval_seconds: u64,
     pub freshness_seconds: u64,
     #[serde(default = "default_enabled")]
@@ -168,10 +174,12 @@ fn validate_config(config: &ScheduleConfig) -> Result<()> {
             !job.repository.as_os_str().is_empty() && !job.backend.as_os_str().is_empty(),
             "schedule job paths must not be empty"
         );
-        ensure!(
-            !job.password_file.as_os_str().is_empty(),
-            "schedule job password file must not be empty"
-        );
+        if let Some(file) = &job.password_file {
+            ensure!(
+                !file.as_os_str().is_empty(),
+                "schedule job password file must not be empty"
+            );
+        }
         match job.kind {
             JobKind::Verify => {
                 ensure!(
@@ -354,13 +362,23 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
         "scheduled repository does not exist"
     );
     ensure!(job.backend.is_file(), "scheduled backend does not exist");
-    ensure!(
-        job.password_file.is_file(),
-        "scheduled password file does not exist"
-    );
+    if let Some(file) = &job.password_file {
+        ensure!(file.is_file(), "scheduled password file does not exist");
+    } else {
+        ensure!(
+            std::env::var_os("PEERVAULT_PASSWORD_FILE").is_some()
+                || std::env::var_os("PEERVAULT_PASSWORD").is_some(),
+            "scheduled job has no password_file and no inherited credential source"
+        );
+    }
     let current = std::env::current_exe().context("cannot locate PeerVault executable")?;
     let mut command = std::process::Command::new(&current);
     let mut destination = None;
+    let mut secret_args: Vec<String> = Vec::new();
+    if let Some(file) = &job.password_file {
+        secret_args.push("--password-file".into());
+        secret_args.push(file.to_string_lossy().into_owned());
+    }
     match job.kind {
         JobKind::Verify => {
             command.args([
@@ -369,9 +387,8 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
                 &job.repository.to_string_lossy(),
                 "--backend",
                 &job.backend.to_string_lossy(),
-                "--password-file",
-                &job.password_file.to_string_lossy(),
             ]);
+            command.args(&secret_args);
             if let Some(snapshot) = &job.snapshot {
                 command.args(["--snapshot", snapshot]);
             }
@@ -382,6 +399,15 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
                 .as_ref()
                 .context("restore job requires destination_root")?;
             ensure!(root.is_dir(), "restore destination_root does not exist");
+            if job.minimum_free_bytes > 0 {
+                let available =
+                    fs2::available_space(root).context("cannot inspect destination free space")?;
+                ensure!(
+                    available >= job.minimum_free_bytes,
+                    "restore destination has {available} bytes free; {} required",
+                    job.minimum_free_bytes
+                );
+            }
             let job_dir = root.join(&job.id);
             if !job_dir.try_exists()? {
                 fs::create_dir(&job_dir).context("cannot create restore job directory")?;
@@ -406,9 +432,8 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
                     .context("restore job requires snapshot")?,
                 "--destination",
                 &candidate.to_string_lossy(),
-                "--password-file",
-                &job.password_file.to_string_lossy(),
             ]);
+            command.args(&secret_args);
             destination = Some(candidate.display().to_string());
         }
     }
@@ -507,9 +532,10 @@ mod tests {
             kind,
             repository: PathBuf::from("repo"),
             backend: PathBuf::from("backend"),
-            password_file: PathBuf::from("secret"),
+            password_file: Some(PathBuf::from("secret")),
             snapshot: Some("a".repeat(64)),
             destination_root: Some(PathBuf::from("restore")),
+            minimum_free_bytes: 0,
             interval_seconds: 60,
             freshness_seconds: 120,
             enabled: true,

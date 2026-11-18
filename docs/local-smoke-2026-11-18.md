@@ -23,7 +23,10 @@ supported-release gates.
 | V0.6 metadata/path matrix | pass | Windows NTFS and WSL2 ext4; long path/unicode/readonly supported, links/special/case collisions rejected, metadata loss recorded |
 | V0.6 cancellation/serialization | pass | exit 130, prior snapshot intact, concurrent capture/verify refused as busy |
 | V0.6 cross-OS restore | pass | Windows->Linux and Linux->Windows through WSL2, exact 6-file/2-directory oracle |
+| V0.6 previous-candidate upgrade | pass | old commit -> new reads/restores old; old reads/restores new |
+| V0.6 quota-style capacity | pass | limited capture/restore fail without a complete target; baseline restores |
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
+| V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
 
 `cargo test --all-targets` passed 21 tests. `cargo clippy --all-targets -- -D
@@ -34,8 +37,9 @@ the license override.
 
 ## Open limits
 
-- Power loss, disk-full, index rebuild, upgrade/rollback and denied-access
-  injection are not covered.
+- Power loss, physical disk-full, index rebuild, denied-access injection and a
+  released-artifact upgrade are not covered. Quota-style capacity and a
+  previous-commit upgrade rehearsal pass.
 - The Linux profile is WSL2 Ubuntu 22.04, not clean Ubuntu 24.04.
 - IPC cross-user denial needs a second OS account.
 - Retention apply is not exercised concurrently with a real capture/restore

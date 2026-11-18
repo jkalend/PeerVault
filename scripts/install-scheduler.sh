@@ -4,17 +4,18 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: install-scheduler.sh --core <peervault> --config <jobs.json> --state <state.json> [--every 15min] [--dry-run]
+Usage: install-scheduler.sh --core <peervault> --config <jobs.json> --state <state.json> [--every 15min] [--credential <secret-file>] [--dry-run]
 EOF
 }
 
-CORE="" CONFIG="" STATE="" EVERY="15min" DRY_RUN=0
+CORE="" CONFIG="" STATE="" EVERY="15min" CREDENTIAL="" DRY_RUN=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --core) CORE="${2:-}"; shift 2 ;;
         --config) CONFIG="${2:-}"; shift 2 ;;
         --state) STATE="${2:-}"; shift 2 ;;
         --every) EVERY="${2:-}"; shift 2 ;;
+        --credential) CREDENTIAL="${2:-}"; shift 2 ;;
         --dry-run) DRY_RUN=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "unknown argument: $1" >&2; usage; exit 2 ;;
@@ -25,6 +26,15 @@ done
 CORE="$(realpath "$CORE")"
 CONFIG="$(realpath "$CONFIG")"
 STATE="$(realpath -m "$STATE")"
+if [[ -n "$CREDENTIAL" ]]; then
+    CREDENTIAL="$(realpath "$CREDENTIAL")"
+    [[ -f "$CREDENTIAL" ]] || { echo "credential file not found: $CREDENTIAL" >&2; exit 1; }
+    mode="$(stat -c '%a' "$CREDENTIAL")"
+    if (( 8#$mode & 8#077 )); then
+        echo "credential file must not be group/other accessible (mode $mode)" >&2
+        exit 1
+    fi
+fi
 [[ -x "$CORE" ]] || { echo "core is not executable: $CORE" >&2; exit 1; }
 [[ -f "$CONFIG" ]] || { echo "job config not found: $CONFIG" >&2; exit 1; }
 [[ -d "$(dirname "$STATE")" ]] || { echo "state directory must exist" >&2; exit 1; }
@@ -51,6 +61,12 @@ UMask=0077
 NoNewPrivileges=yes
 PrivateTmp=yes
 EOF
+    if [[ -n "$CREDENTIAL" ]]; then
+        cat >>"$service" <<EOF
+LoadCredential=peervault:$CREDENTIAL
+Environment=PEERVAULT_PASSWORD_FILE=%d/peervault
+EOF
+    fi
     cat >"$timer" <<EOF
 [Unit]
 Description=Run PeerVault schedule-tick every $EVERY

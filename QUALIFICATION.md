@@ -28,7 +28,13 @@ scripts/v05-retention.py     retention preview/apply/peer-root/mass-change drill
 scripts/v06-matrix.py        metadata/path capability matrix
 scripts/v06-cancel.py        cancellation and repository serialization drill
 scripts/v06-cross-os.py      Windows/Linux bidirectional portable-subset restore
+scripts/v06-capacity.py      RLIMIT_FSIZE quota-style exhaustion drill (Unix)
+scripts/v06-upgrade.py       previous-candidate read/restore compatibility drill
 scripts/v08-ipc.py           owner-only named-pipe/Unix-socket IPC drill
+scripts/v08-schedule.py      status/clock/missed/credential/quota drill
+scripts/v08-secret.py        Windows DPAPI scheduled-secret drill
+scripts/secret-store.ps1     DPAPI store/remove helper
+scripts/task-run.ps1         DPAPI runtime wrapper for one scheduled tick
 scripts/v09-measure.py       repeated recovery measurement harness
 scripts/install-scheduler.ps1  Windows Task Scheduler installer (S4U)
 scripts/install-scheduler.sh   Linux user systemd timer installer (run via bash)
@@ -157,7 +163,11 @@ python scripts/v05-retention.py --binary ./peervault --backend .tools/restic --r
 python scripts/v06-matrix.py --binary ./peervault --backend .tools/restic --root <new-root>
 python scripts/v06-cancel.py --binary ./peervault --backend .tools/restic --root <new-root>
 python scripts/v08-ipc.py --binary ./peervault --backend .tools/restic --root <new-root>
+python scripts/v08-schedule.py --binary ./peervault --backend .tools/restic --root <new-root>
 ```
+
+`v08-secret.py` is Windows-only (DPAPI); `v06-capacity.py` requires Unix. The
+upgrade drill needs a previous candidate binary, built from a sibling worktree.
 
 The matrix records supported/rejected/lossy metadata cases. The cancellation
 drill interrupts a large capture and verifies the prior snapshot. The IPC drill

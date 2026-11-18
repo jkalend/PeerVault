@@ -25,8 +25,8 @@ requires a new candidate.
 | P0 | Redistribution license | **blocked** | resolve bailiff all-rights-reserved terms or replace it; `verify-package.py` passes without override |
 | P0 | Independent security review | not started | adapter/process, restore containment, credential custody, peer authorization, dependency posture, destructive retention; critical/high fixed and retested |
 | P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
-| P0 | Upgrade/rollback | not started | prior supported artifact, old-snapshot restore, interrupted migration, verified pre-migration copy |
-| P0 | Disk-full / denied access | partial | no false complete outcome, partial target labelled, tree reaped, prior state readable |
+| P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
+| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota drill preserves the baseline and leaves no complete target; physical disk-full, denied access and index rebuild open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
 | P0 | Clean Ubuntu 24.04 | not started | clean install/ext4 capture/verify/restore and copy drill; WSL2 22.04 is diagnostic only |
@@ -34,8 +34,8 @@ requires a new candidate.
 | P0 | Publisher verification | partial | checksum sidecars exist; signing key/fingerprint and published verification instructions outside the repo |
 | P0 | Owner go/no-go | not started | signed decision against the exact artifact/evidence manifest |
 | P1 | V0.5 retention | partial | independent security checkpoint, concurrent capture/restore/transfer, disk-full, clock/listing, remote peer roots |
-| P1 | V0.6 matrix | partial | Windows/NTFS + Ubuntu 22.04 matrix passes; target 24.04, upgrade, power loss and corpus rerun open |
-| P1 | V0.8 product surface | partial | IPC, desktop operations and scheduler installers implemented; platform secret store, retention apply, quota/restart/clock, accessibility open |
+| P1 | V0.6 matrix | partial | Windows/NTFS + Ubuntu 22.04 matrix, cross-OS, previous-commit upgrade and quota drill pass; released-artifact upgrade, target 24.04, power loss and corpus rerun open |
+| P1 | V0.8 product surface | partial | IPC, desktop operations, scheduler installers, DPAPI/systemd credentials and quota preflight implemented; retention apply, restart reconciliation, physical stress, accessibility and cross-user/task identity open |
 | P1 | Support/security channel | draft | monitored contact and response target published |
 | P1 | Compatibility freeze | draft | contract versions and one backend generation frozen |
 | P1 | Measured recovery | partial | 5-run 64 MiB harness exists; frozen release artifact, RSS/CPU/transfer bytes, controlled cold cache and preselected windows open |
