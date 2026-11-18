@@ -1,29 +1,24 @@
-# Release candidate 1 — 2026-11-18
+# Release candidate 0.9.0-rc.1 — 2026-11-18
 
-Status: **verified build candidate published as a draft prerelease, not a
-supported release.** Owner go/no-go for supported 0.9 and the external/hardware
-gates remain open. Draft: `v0.0.1-rc.1`.
+Status: **release candidate for superproject integration, not a supported
+release.** Owner go/no-go for supported 0.9 and the external/hardware gates
+remain open. Draft tag: `v0.9.0-rc.1`.
 
 ## Identity
 
 | Field | Value |
 |---|---|
-| Commit | `a473985e7a9e4a47187225c2425f55a600ea41dc` |
+| Commit | the commit tagged `v0.9.0-rc.1` |
 | Components pin | `3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd` (bailiff Apache-2.0) |
-| CI | run `44409613946`, windows-2025 + ubuntu-24.04, pass |
+| Crate/artifact version | `0.9.0-rc.1` |
 | Windows package | `peervault-windows-2025.zip` (framework-dependent desktop payload included) |
-| Windows SHA-256 | `4cb7e9c21d8ec4130b4843631010e7a3d9d7c0a66a6722ffb190506224c6f1ff` |
 | Linux package | `peervault-ubuntu-24.04.tar.gz` |
-| Linux SHA-256 | `67abca447a9f05fa3529a92ba836bf4a9e762089fbef99f81da0e5e1a3b9e65f` |
-| SBOM SHA-256 (Windows package) | `2cd76cd059e0ddb2e61ebfa2010861d626a618bd16cf3d49a48c34d9743ab188` |
-| Manifest SHA-256 (Windows package) | `f49e4b6bf95d77db92f51d313b1e0bd393a1f432532a0a35f2b8f51aef7a6c23` |
-| Notices SHA-256 (Windows package) | `a0dbecd9beb001efbf7c19a7655ac1720e2218fadd5549b44d77b7660eebcab9` |
+| Hashes | recorded in the draft release body and this file after the tag build |
 
-The Windows archive contains 85 members; Linux 89 (additional platform SBOM
-components). Both contain the CLI, desktop payload on Windows, docs, scripts,
-fixtures, LICENSE, notices, SBOM and release manifest. The release manifest hashes
-the CLI and all five desktop payload files; package verification rejects
-unmanifested executables.
+The Windows archive includes the CLI, desktop payload, docs, scripts, fixtures,
+LICENSE, notices, SBOM and release manifest. The release manifest hashes the CLI
+and all desktop payload files; package verification rejects unmanifested
+executables.
 
 ## Verification performed
 
@@ -51,4 +46,4 @@ drills.
 
 This draft exists for superproject pinning and review. Do not relabel it as a
 supported release until [release-checklist.md](release-checklist.md) is fully
-green and the owner records go/no-go against these exact hashes.
+green and the owner records go/no-go against the published hashes.

@@ -1,6 +1,6 @@
 [package]
 name = "peervault"
-version = "0.0.1"
+version = "0.9.0-rc.1"
 edition = "2024"
 rust-version = "1.98"
 description = "PeerVault recovery qualification tools (R0, experimental)"

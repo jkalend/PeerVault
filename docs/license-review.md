@@ -20,7 +20,7 @@ release-gate record, not legal advice.
 
 | Component | Version | License | Bundled |
 |---|---|---|---|
-| PeerVault | 0.0.1 | Apache-2.0 | yes |
+| PeerVault | 0.9.0-rc.1 | Apache-2.0 | yes |
 | bailiff | 0.0.1 | Apache-2.0 | yes (linked) |
 | restic | 0.19.1 | BSD-2-Clause | no; installed separately by pinned checksum |
 | kopia | 0.23.1 | Apache-2.0 | no; R0 comparison only |

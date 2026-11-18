@@ -55,6 +55,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     arguments = parser.parse_args()
     metadata = cargo_metadata()
+    with (ROOT / "Cargo.toml").open("rb") as stream:
+        version = tomllib.load(stream)["package"]["version"]
     resolved = {node["id"] for node in metadata["resolve"]["nodes"]}
     checksums = lock_checksums()
     components = []
@@ -119,9 +121,9 @@ def main():
         "metadata": {
             "component": {
                 "type": "application",
-                "bom-ref": "pkg:cargo/peervault@0.0.1",
+                "bom-ref": f"pkg:cargo/peervault@{version}",
                 "name": "peervault",
-                "version": "0.0.1",
+                "version": version,
                 "licenses": [{"license": {"id": "Apache-2.0"}}],
             },
             "tools": {"components": [{"type": "application", "name": "peervault-sbom"}]},

@@ -1,15 +1,14 @@
-# PeerVault v0.0.1-rc.1 — release candidate notes
+# PeerVault v0.9.0-rc.1 — release candidate notes
 
 **Status: release candidate for superproject integration, not a supported
-backup release.** Do not describe this as backup-only 0.9 or 1.0.
+release.** Do not describe this as supported backup-only 0.9 or 1.0.
 
 ## Artifact identity
 
-- Commit: `a473985e7a9e4a47187225c2425f55a600ea41dc`
+- Tag: `v0.9.0-rc.1`
+- Crate/artifact version: `0.9.0-rc.1`
 - Components pin: `3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd`
-- Windows published package SHA-256: `4cb7e9c21d8ec4130b4843631010e7a3d9d7c0a66a6722ffb190506224c6f1ff` (85 members, 54 SBOM components)
-- Linux published package SHA-256: `67abca447a9f05fa3529a92ba836bf4a9e762089fbef99f81da0e5e1a3b9e65f` (89 members, 59 SBOM components)
-- CI: run `44409613946` (windows-2025 + ubuntu-24.04) plus tag run `44411439476`
+- Published asset hashes: recorded in this release body after the tag build
 - SBOM: CycloneDX 1.5, all licenses declared
 - Package verifier: checksum, manifest artifact/SBOM binding, desktop executable
   manifest binding and license review pass without overrides on both downloaded
@@ -41,4 +40,4 @@ backup release.** Do not describe this as backup-only 0.9 or 1.0.
 
 Supported backup-only 0.9 requires the remaining P0 gates in
 `docs/release-checklist.md`; this draft exists so a superproject can pin and
-exercise the candidate. Report failures against the exact artifact hash above.
+exercise the candidate. Report failures against the exact published asset hashes.
