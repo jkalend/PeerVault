@@ -22,7 +22,7 @@ requires a new candidate.
 
 | P | Gate | Status | Required evidence |
 |---|---|---|---|
-| P0 | Redistribution license | **resolved locally** | bailiff relicensed Apache-2.0 in Components `3f674a2`; publish that commit and update/fetch the pin; `verify-package.py` passes without override |
+| P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44386964143` passed package verification without override |
 | P0 | Independent security review | not started | adapter/process, restore containment, credential custody, peer authorization, dependency posture, destructive retention; critical/high fixed and retested |
 | P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |

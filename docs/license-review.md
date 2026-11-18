@@ -1,9 +1,9 @@
 # License and redistribution review — 2026-11-18
 
-Status: **resolved locally.** The owner selected Apache-2.0 for the bailiff
-component. The change is committed in Components as
-`3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd`; this is a release-gate record, not
-legal advice.
+Status: **resolved and published.** The owner selected Apache-2.0 for the bailiff
+component. Components `3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd` is on
+`origin/main`, and PeerVault pins it in `components-lock.txt`. This is a
+release-gate record, not legal advice.
 
 ## Resolution
 
@@ -29,12 +29,11 @@ legal advice.
 `THIRD-PARTY-NOTICES.txt` includes the resolved crate license files, and the
 SBOM records the exact component set for the artifact.
 
-## Publication requirement
+## Publication verification
 
-The Components commit and the PeerVault pin update are local until pushed. CI
-clones `components-lock.txt` from the remote, so both repositories must be
-published for reproducible CI/release evidence. A release candidate built before
-that push does not satisfy the distribution gate.
+The Components commit and the PeerVault pin are published. CI run `44386964143`
+on `26164ce` cloned the pinned commit, built both platforms, and passed package
+verification without `--allow-license-block`.
 
 ## Other checks
 

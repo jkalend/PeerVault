@@ -39,8 +39,10 @@ marked passed from source presence, CI definitions or a partial drill.
   an operation allowlist and desktop capture/history/verify/restore/preview.
 - A five-run repeated capture/full-read/restore measurement with raw
   observations and descriptive median/p95.
-- CI on windows-2025 and ubuntu-24.04 for the R0 smoke, V0.1 restore, V0.2 kit,
-  V0.3 peer record, V0.5 retention, V0.6 matrix/cancellation and V0.8 IPC drills.
+- CI run `44386964143` on `26164ce` passed on windows-2025 and ubuntu-24.04:
+  R0 smoke, V0.1 restore, V0.2 kit, V0.3 peer record, V0.5 retention, V0.6
+  matrix/cancellation/upgrade/capacity, V0.8 IPC/schedule/DPAPI, package
+  verification without a license override.
 
 ## Blocking RC
 
@@ -53,8 +55,7 @@ marked passed from source presence, CI definitions or a partial drill.
 4. **Release engineering**: independent security review, frozen compatibility and
    support matrix, packaged clean recovery, publisher verification, signed
    artifacts and owner go/no-go. The bailiff/Components Apache-2.0 relicensing is
-   committed locally; its commit and the updated PeerVault pin must be published
-   before CI/release can fetch it.
+   published and the package license gate now passes.
 5. **Retention**: deletion/maintenance exists, but the independent security
    checkpoint, concurrent capture/restore/transfer, disk-full, kill-at-phase,
    clock/listing and remote-peer-root cases are not qualified.

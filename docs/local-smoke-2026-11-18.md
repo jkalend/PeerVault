@@ -28,12 +28,13 @@ supported-release gates.
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
 | V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
+| CI on `26164ce` | pass | run `44386964143`: windows-2025 and ubuntu-24.04, including package license verification |
 
 `cargo test --all-targets` passed 21 tests. `cargo clippy --all-targets -- -D
 warnings` and `cargo fmt --check` passed. Python unit tests and the document-link
 check passed. The local package pipeline generated notices, a 54-component SBOM,
-a release manifest and a checksummed archive; package verification passed with
-the license override.
+a release manifest and a checksummed archive; package verification passes without
+a license override after the published relicensing.
 
 ## Open limits
 
@@ -46,5 +47,5 @@ the license override.
   transfer; the lock behavior is covered by the cancellation drill.
 - The 14-day beta, three clean-device drills, second operator and independent
   hardware remain open.
-- `bailiff` is relicensed Apache-2.0 in Components `3f674a2`; the Components
-  commit and PeerVault pin still need publication for CI/release fetch.
+- `bailiff` is relicensed Apache-2.0 in published Components `3f674a2`; the
+  PeerVault pin is published and package verification passes without override.
