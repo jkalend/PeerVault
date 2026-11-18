@@ -24,6 +24,7 @@ REQUIRED = {
     "docs/compatibility.md",
     "docs/runbook.md",
     "docs/release-checklist.md",
+    "docs/security-review-scope.md",
     "docs/license-review.md",
     "docs/local-smoke-2026-11-18.md",
     "scripts/v05-retention.py",
