@@ -46,5 +46,5 @@ the license override.
   transfer; the lock behavior is covered by the cancellation drill.
 - The 14-day beta, three clean-device drills, second operator and independent
   hardware remain open.
-- `bailiff` is all-rights-reserved in the Components workspace; binary
-  redistribution is blocked until the owner resolves it.
+- `bailiff` is relicensed Apache-2.0 in Components `3f674a2`; the Components
+  commit and PeerVault pin still need publication for CI/release fetch.

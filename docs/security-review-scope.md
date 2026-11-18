@@ -15,7 +15,7 @@ critical/high finding may remain open for the supported subset.
 | Peer/copy records | V0.3 drill, retention peer roots | Does an acknowledgement overstate copy health? Can a source-absent drill pass without the exact peer binding/key role? |
 | Retention | `src/retention.rs` | Can preview/apply drift, replay, peer-root loss, mass-change, an abandoned lock, or a partial backend failure broaden deletion? Is only backend-native maintenance used? |
 | IPC | `src/ipc.rs`, `src/agent.rs`, desktop | Are the named-pipe/Unix-socket caller SID/UID checks effective? Can a different account connect, replay, or reach a non-allowlisted operation? Is the response bounded? |
-| Distribution | `scripts/sbom.py`, `verify-package.py`, package | Does the artifact/notice/SBOM set match the published bytes? Is the bailiff license resolved? Are publisher/signature instructions non-circular? |
+| Distribution | `scripts/sbom.py`, `verify-package.py`, package | Does the artifact/notice/SBOM set match the published bytes? Is the published Components pin the relicensed commit? Are publisher/signature instructions non-circular? |
 
 ## Out of scope / explicitly not claimed
 
@@ -34,7 +34,8 @@ critical/high finding may remain open for the supported subset.
 3. Critical/high findings fixed and retested, or the affected profile removed
    from the supported claim. A waiver cannot preserve a broken safety guarantee.
 4. Confirmation that `scripts/verify-package.py` passes without
-   `--allow-license-block` on the reviewed artifact.
+   `--allow-license-block` on the reviewed artifact and that the published
+   Components pin is the relicensed commit.
 
 ## Evidence to supply
 

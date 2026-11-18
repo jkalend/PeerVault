@@ -52,9 +52,9 @@ marked passed from source presence, CI definitions or a partial drill.
    IPC; no supported GUI exists.
 4. **Release engineering**: independent security review, frozen compatibility and
    support matrix, packaged clean recovery, publisher verification, signed
-   artifacts and owner go/no-go. The current package has an SBOM/notices and
-   checksum verification, but the **bailiff all-rights-reserved license blocks
-   binary redistribution** until the owner resolves it.
+   artifacts and owner go/no-go. The bailiff/Components Apache-2.0 relicensing is
+   committed locally; its commit and the updated PeerVault pin must be published
+   before CI/release can fetch it.
 5. **Retention**: deletion/maintenance exists, but the independent security
    checkpoint, concurrent capture/restore/transfer, disk-full, kill-at-phase,
    clock/listing and remote-peer-root cases are not qualified.

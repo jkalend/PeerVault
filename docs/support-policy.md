@@ -72,7 +72,7 @@ store/file and are never copied into retention/schedule state.
 ## Known release blockers
 
 See [release-checklist.md](release-checklist.md) and
-[license-review.md](license-review.md). The current critical blockers include the
-unresolved bailiff redistribution license, independent security review, clean
-Ubuntu 24.04 evidence, power-loss/upgrade/disk-full qualification and the 14-day
-beta with a second operator.
+[license-review.md](license-review.md). The bailiff license is resolved locally;
+the remaining critical blockers include independent security review, clean
+Ubuntu 24.04 evidence, power-loss/physical disk-full qualification and the
+14-day beta with a second operator.

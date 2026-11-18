@@ -1,50 +1,40 @@
 # License and redistribution review — 2026-11-18
 
-Status: **blocked for binary distribution.** This is a release-gate finding, not
+Status: **resolved locally.** The owner selected Apache-2.0 for the bailiff
+component. The change is committed in Components as
+`3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd`; this is a release-gate record, not
 legal advice.
 
-## Product
+## Resolution
 
-- PeerVault is licensed under Apache-2.0 (`LICENSE`).
-- PeerVault 0.0.1 links `bailiff` as a path dependency and ships it inside the
-  binary. `Components/crates/bailiff/Cargo.toml` declares `license-file = "LICENSE"`.
-  That file says:
+- `Components/crates/bailiff/Cargo.toml` now declares `license = "Apache-2.0"`.
+- `Components/crates/bailiff/LICENSE` now contains the workspace Apache-2.0 text.
+- The previous all-rights-reserved text is superseded; it is retained in
+  Components Git history.
+- PeerVault pins the relicensed Components commit in `components-lock.txt`.
+- `scripts/sbom.py` now reports
+  `all resolved components declare a license expression`, and
+  `scripts/verify-package.py` passes without `--allow-license-block`.
 
-  > All rights reserved until a distribution license is chosen. No permission is
-  > granted to use, copy, modify, or distribute this software except as required
-  > to evaluate this repository and its declared consumers.
-
-  Apache-2.0 on PeerVault cannot grant rights to bailiff. A public binary that
-  contains bailiff is not redistributable on the current terms.
-
-## External backends
+## Product and dependencies
 
 | Component | Version | License | Bundled |
 |---|---|---|---|
+| PeerVault | 0.0.1 | Apache-2.0 | yes |
+| bailiff | 0.0.1 | Apache-2.0 | yes (linked) |
 | restic | 0.19.1 | BSD-2-Clause | no; installed separately by pinned checksum |
 | kopia | 0.23.1 | Apache-2.0 | no; R0 comparison only |
 | .NET runtime (desktop) | 10 | MIT | framework-dependent build; confirm the deployment model before publishing |
 
-`THIRD-PARTY-NOTICES.txt` includes the resolved crate license files, including
-bailiff's current all-rights-reserved text. `scripts/sbom.py` marks the review as
-`blocked: bailiff` instead of inventing an SPDX license.
+`THIRD-PARTY-NOTICES.txt` includes the resolved crate license files, and the
+SBOM records the exact component set for the artifact.
 
-## Required owner decision (critical)
+## Publication requirement
 
-Choose one before any supported binary or container is published:
-
-1. Select and commit a distribution license for `Components` (for example
-   Apache-2.0 with the owner's authority), then regenerate notices/SBOM and
-   re-run package verification.
-2. Replace the bailiff dependency with first-party code or a permissively
-   licensed crate, then regenerate the SBOM and dependency notices.
-3. Keep releases source-only. That contradicts the planned supported 0.9 binary
-   and clean-install recovery gates, so it is not a release path without an
-   explicit scope change.
-
-Until one path is completed, `scripts/verify-package.py` fails on the SBOM
-license review unless the experimental `--allow-license-block` flag is passed.
-That flag is for disposable CI packages only, never for an RC.
+The Components commit and the PeerVault pin update are local until pushed. CI
+clones `components-lock.txt` from the remote, so both repositories must be
+published for reproducible CI/release evidence. A release candidate built before
+that push does not satisfy the distribution gate.
 
 ## Other checks
 

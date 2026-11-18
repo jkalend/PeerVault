@@ -12,10 +12,12 @@ V0.8 scheduler, versioned owner-only IPC and desktop shell exist. V0.6 beta, V0.
 V0.9 measured beta and RC gates remain open. Each restore report covers an exact
 tested snapshot/profile/drill, not a permanent recoverability guarantee.
 
-Release readiness: **not releasable**. See the
+Release readiness: **not releasable**. The bailiff redistribution license is
+resolved in Components commit `3f674a2`; independent review, power-loss, clean
+Ubuntu 24.04, beta and go/no-go gates remain. See the
 [release checklist](docs/release-checklist.md), [support scope](docs/support-policy.md),
 [compatibility matrix](docs/compatibility.md), [owner runbook](docs/runbook.md)
-and the blocking [license review](docs/license-review.md).
+and [license review](docs/license-review.md).
 
 Canonical design: [peervault](https://github.com/jkalend/project-planning/blob/main/projects/peervault.md)
 

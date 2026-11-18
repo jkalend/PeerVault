@@ -196,9 +196,9 @@ jobs:
             "$hash  $($_.Name)" | Set-Content "$($_.FullName).sha256" -Encoding utf8NoBOM
             Copy-Item dist/release-manifest.json "$($_.FullName).manifest.json"
             if ($IsWindows) {
-              python scripts/verify-package.py $_.FullName --allow-license-block --require-desktop
+              python scripts/verify-package.py $_.FullName --require-desktop
             } else {
-              python scripts/verify-package.py $_.FullName --allow-license-block
+              python scripts/verify-package.py $_.FullName
             }
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
