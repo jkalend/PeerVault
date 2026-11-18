@@ -34,6 +34,7 @@ REQUIRED = {
     "scripts/v08-schedule.py",
     "scripts/v08-secret.py",
     "scripts/v06-capacity.py",
+    "scripts/v06-diskfull.py",
     "scripts/v06-upgrade.py",
     "scripts/secret-store.ps1",
     "scripts/task-run.ps1",

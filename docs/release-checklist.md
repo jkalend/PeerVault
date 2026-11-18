@@ -26,7 +26,7 @@ requires a new candidate.
 | P0 | Independent security review | **internal review complete; external open** | internal findings F1–F9 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
 | P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
-| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota drill preserves the baseline and leaves no complete target; physical disk-full, denied access and index rebuild open |
+| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota and 64 MiB tmpfs ENOSPC drills preserve the baseline and leave no complete target; physical media failure, denied access and index rebuild open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
 | P0 | Clean Ubuntu 24.04 | partial | V0.1 and matrix pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |

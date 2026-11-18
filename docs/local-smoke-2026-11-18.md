@@ -25,6 +25,7 @@ supported-release gates.
 | V0.6 cross-OS restore | pass | Windows->Linux and Linux->Windows through WSL2, exact 6-file/2-directory oracle |
 | V0.6 previous-candidate upgrade | pass | old commit -> new reads/restores old; old reads/restores new |
 | V0.6 quota-style capacity | pass | limited capture/restore fail without a complete target; baseline restores |
+| V0.6 filesystem-full | pass | 64 MiB tmpfs, 128 MiB addition: capture fails, prior snapshot restores exactly |
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
 | V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
