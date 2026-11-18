@@ -8,12 +8,16 @@ remain open. Draft tag: `v0.9.0-rc.1`.
 
 | Field | Value |
 |---|---|
-| Commit | the commit tagged `v0.9.0-rc.1` |
+| Commit | `687cb60eacf5fd2518719b5e3cc4c278a5ea87fd` |
 | Components pin | `3f674a2cbe67bcc25f30145cbcfb58d4dfb846bd` (bailiff Apache-2.0) |
 | Crate/artifact version | `0.9.0-rc.1` |
-| Windows package | `peervault-windows-2025.zip` (framework-dependent desktop payload included) |
-| Linux package | `peervault-ubuntu-24.04.tar.gz` |
-| Hashes | recorded in the draft release body and this file after the tag build |
+| Windows package | `peervault-windows-2025.zip` (85 members; framework-dependent desktop payload included) |
+| Windows SHA-256 | `d0eb1898a4ac9293b7a398e91f7a12e2c33f0dd44708434c6ad82525d92f1f2a` |
+| Linux package | `peervault-ubuntu-24.04.tar.gz` (89 members) |
+| Linux SHA-256 | `3dc9669f7d7323479913b4a072c81b88f429db977553b0ece20222523ebe10b5` |
+| SBOM SHA-256 (Windows) | `adb1299539c2bf1030635340aabad0a6bb656efa43235700bcdc74557ab0d4d3` |
+| Manifest SHA-256 (Windows) | `d47fbc4de6418eacd24e423a4eb8dfe95558f2d1bd47795c2c772013ef869da2` |
+| Notices SHA-256 (Windows) | `a0dbecd9beb001efbf7c19a7655ac1720e2218fadd5549b44d77b7660eebcab9` |
 
 The Windows archive includes the CLI, desktop payload, docs, scripts, fixtures,
 LICENSE, notices, SBOM and release manifest. The release manifest hashes the CLI
