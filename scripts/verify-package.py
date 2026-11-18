@@ -36,6 +36,8 @@ REQUIRED = {
     "scripts/v06-capacity.py",
     "scripts/v06-diskfull.py",
     "scripts/v06-denied.py",
+    "scripts/v06-acl.py",
+    "scripts/v06-index.py",
     "scripts/v06-powerloss.sh",
     "scripts/v06-upgrade.py",
     "scripts/secret-store.ps1",

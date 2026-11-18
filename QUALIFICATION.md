@@ -31,6 +31,8 @@ scripts/v06-cross-os.py      Windows/Linux bidirectional portable-subset restore
 scripts/v06-capacity.py      RLIMIT_FSIZE quota-style exhaustion drill (Unix)
 scripts/v06-diskfull.py      bounded-filesystem ENOSPC drill
 scripts/v06-denied.py        Unix non-root source-denial drill
+scripts/v06-acl.py           Windows deny-ACE source drill
+scripts/v06-index.py         backend index-loss/rebuild drill
 scripts/v06-powerloss.sh     QEMU guest hard-power-off drill
 scripts/v06-upgrade.py       previous-candidate read/restore compatibility drill
 scripts/v08-ipc.py           owner-only named-pipe/Unix-socket IPC drill

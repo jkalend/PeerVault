@@ -26,7 +26,7 @@ requires a new candidate.
 | P0 | Independent security review | **two internal reviews complete; external open** | internal findings F1–F12 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
 | P0 | Power-loss / kill-at-phase | **pass (scoped VM)** | QEMU/TCG Ubuntu guest hard-killed during capture; ext4 recovery, prior snapshot verify and exact restore pass; physical hardware and other phases remain additional coverage |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
-| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE, tmpfs and ext4 loopback ENOSPC plus Unix non-root denial preserve the baseline; physical media failure, Windows ACL denial and index rebuild open |
+| P0 | Disk-full / denied access | partial | RLIMIT_FSIZE, tmpfs/ext4 loopback ENOSPC, Unix/Windows denial and backend index rebuild preserve the baseline; physical media failure remains open |
 | P0 | 14-day operational beta | not started | 14 consecutive days, >=3 clean-device restores, injected outage/reconnect/low-space, every manual repair recorded |
 | P0 | Second operator | not started | another operator follows only the runbook for install/capture/restore/recovery |
 | P0 | Clean Ubuntu 24.04 | partial | V0.1, matrix, IPC and scheduler pass in a fresh `ubuntu:24.04` container; clean host install/ext4, copy drill and independent evidence still open |

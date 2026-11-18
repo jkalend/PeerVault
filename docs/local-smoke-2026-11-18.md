@@ -27,7 +27,8 @@ supported-release gates.
 | V0.6 quota-style capacity | pass | limited capture/restore fail without a complete target; baseline restores |
 | V0.6 filesystem-full | pass | 64 MiB tmpfs and ext4 loopback, 128 MiB addition: capture fails, prior snapshot restores exactly |
 | V0.6 hard-power-off | pass | QEMU/TCG Ubuntu guest killed during capture; ext4 recovery and exact baseline restore |
-| V0.6 denied access | pass | non-root Unix user, 000 source subdir: capture fails, baseline restores |
+| V0.6 denied access | pass | non-root Unix `000` and Windows deny ACE: capture fails, baseline restores |
+| V0.6 index rebuild | pass | removed index file, backend rebuild, full read and exact restore |
 | V0.8 owner-only IPC | pass | named pipe and Unix socket; allowlist/version refusals, history/status, second-owner refusal, restart |
 | V0.8 scheduler/DPAPI | pass | status/fresh/missed/clock/quota; DPAPI runtime secret removed after a passing tick |
 | V0.9 repeated measurement | pass | 5 runs, 64 MiB + 100 files; see `v0.9-measure.md` |
