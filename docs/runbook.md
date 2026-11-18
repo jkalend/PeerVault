@@ -118,12 +118,12 @@ Windows DPAPI:
 
 ```text
 powershell -File scripts/secret-store.ps1 -Action Store -SecretFile <plaintext> -ProtectedFile <secret.dpapi>
-powershell -File scripts/install-scheduler.ps1 -Core <peervault.exe> -Config <jobs.json> -State <state.json> -ProtectedSecret <secret.dpapi> -SecretPath <runtime-secret.txt>
+powershell -File scripts/install-scheduler.ps1 -Core <peervault.exe> -Config <jobs.json> -State <state.json> -ProtectedSecret <secret.dpapi>
 ```
 
-Delete the plaintext after storing. The wrapper decrypts for one tick and removes
-the runtime file. Test the exact task account; S4U cannot read another user's
-DPAPI blob.
+Delete the plaintext after storing. The wrapper decrypts to a random owner-only
+runtime file for one tick and removes it. Test the exact task account; S4U cannot
+read another user's DPAPI blob.
 
 Linux systemd credential:
 

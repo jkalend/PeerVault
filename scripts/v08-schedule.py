@@ -85,6 +85,8 @@ def main():
     (source / "hello.txt").write_text("schedule\n", encoding="utf-8")
     secret = root / "secret.txt"
     secret.write_text(secrets.token_hex(24), encoding="utf-8")
+    if os.name != "nt":
+        os.chmod(secret, 0o600)
     require(run(binary, ["init", "--repository", str(repository), "--backend", backend, "--password-file", str(secret)]), "init")
     captured = json.loads(
         require(

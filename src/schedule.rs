@@ -143,9 +143,8 @@ fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>> {
 fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= MAX_ID_LENGTH
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        && !id.contains('/')
+        && bailiff::fixture::validate_path(id).is_ok()
 }
 
 fn validate_config(config: &ScheduleConfig) -> Result<()> {
@@ -253,9 +252,14 @@ fn write_state(path: &Path, state: &ScheduleState) -> Result<()> {
         fs::remove_file(&temp).context("cannot remove stale schedule temporary state")?;
     }
     let bytes = serde_json::to_vec_pretty(state).context("cannot encode schedule state")?;
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
         .open(&temp)
         .context("cannot create schedule temporary state")?;
     file.write_all(&bytes)
@@ -401,6 +405,12 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
                 .as_ref()
                 .context("restore job requires destination_root")?;
             ensure!(root.is_dir(), "restore destination_root does not exist");
+            let root = fs::canonicalize(root).context("cannot resolve destination_root")?;
+            let job_dir = root.join(&job.id);
+            ensure!(
+                job_dir.starts_with(&root),
+                "restore job directory escapes destination_root"
+            );
             if job.minimum_free_bytes > 0 {
                 let available =
                     fs2::available_space(root).context("cannot inspect destination free space")?;
@@ -410,8 +420,9 @@ fn run_job(job: &JobSpec, now: u64) -> Result<Option<String>> {
                     job.minimum_free_bytes
                 );
             }
-            let job_dir = root.join(&job.id);
-            if !job_dir.try_exists()? {
+            if job_dir.try_exists()? {
+                ensure!(job_dir.is_dir(), "restore job path is not a directory");
+            } else {
                 fs::create_dir(&job_dir).context("cannot create restore job directory")?;
             }
             let mut candidate = job_dir.join(now.to_string());
@@ -557,6 +568,14 @@ mod tests {
         config.jobs[1].id = "restore".to_owned();
         config.jobs[1].destination_root = None;
         assert!(validate_config(&config).is_err());
+        config.jobs[1].destination_root = Some(PathBuf::from("restore"));
+        for invalid in ["..", ".", "job.", "job ", "CON", "a/b"] {
+            config.jobs[1].id = invalid.to_owned();
+            assert!(
+                validate_config(&config).is_err(),
+                "invalid job id was accepted: {invalid}"
+            );
+        }
     }
 
     #[test]

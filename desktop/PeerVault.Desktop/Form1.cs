@@ -1,12 +1,17 @@
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
 
 namespace PeerVault.Desktop;
 
 public sealed class Form1 : Form
 {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetNamedPipeServerProcessId(SafePipeHandle pipe, out uint serverProcessId);
+
     private readonly TextBox _core = new() { Text = "peervault.exe", Width = 520 };
     private readonly TextBox _endpoint = new() { Width = 520 };
     private readonly TextBox _config = new() { Width = 520 };
@@ -34,7 +39,7 @@ public sealed class Form1 : Form
 
     public Form1()
     {
-        _endpoint.Text = $"peervault-desktop-{Environment.ProcessId}";
+        _endpoint.Text = $"peervault-desktop-{Guid.NewGuid():N}";
         Text = "PeerVault owner desktop (experimental)";
         Width = 980;
         Height = 760;
@@ -100,6 +105,12 @@ public sealed class Form1 : Form
         try
         {
             _pipe.Connect(5000);
+            if (!GetNamedPipeServerProcessId(_pipe.SafePipeHandle, out var serverProcessId)
+                || serverProcessId != _agent.Id)
+            {
+                StopAgent();
+                return false;
+            }
         }
         catch
         {

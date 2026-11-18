@@ -497,6 +497,7 @@ dependencies = [
  "bailiff",
  "chrono",
  "clap",
+ "command-group",
  "ctrlc",
  "fs2",
  "getrandom",

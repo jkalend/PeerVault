@@ -23,7 +23,7 @@ requires a new candidate.
 | P | Gate | Status | Required evidence |
 |---|---|---|---|
 | P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44386964143` passed package verification without override |
-| P0 | Independent security review | not started | adapter/process, restore containment, credential custody, peer authorization, dependency posture, destructive retention; critical/high fixed and retested |
+| P0 | Independent security review | **internal review complete; external open** | internal findings F1–F9 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
 | P0 | Power-loss / kill-at-phase | partial | scoped VM hard-power-off at observed capture/restore/maintenance phases; prior snapshots and pins survive |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
 | P0 | Disk-full / denied access | partial | RLIMIT_FSIZE quota drill preserves the baseline and leaves no complete target; physical disk-full, denied access and index rebuild open |

@@ -8,6 +8,7 @@ use crate::pins;
 use anyhow::{Context, Result, bail, ensure};
 use bailiff::fixture::{hash_file, validate_path};
 use bailiff::process::bounded;
+use command_group::CommandGroup;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -261,6 +262,14 @@ impl Credential {
             (1..=8192).contains(&metadata.len()),
             "password file must contain 1..=8192 bytes"
         );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            ensure!(
+                metadata.permissions().mode() & 0o077 == 0,
+                "password file must not be group/other accessible"
+            );
+        }
         Ok(Self {
             file: Some(fs::canonicalize(file)?),
         })
@@ -918,11 +927,22 @@ fn extract_snapshot(
         .args(["dump", "--no-lock", "--archive", "tar", snapshot, "/"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
+    let mut group = command.group();
+    #[cfg(windows)]
+    group.kill_on_drop(true).creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    let mut child = group
         .spawn()
         .context("cannot launch contained extraction")?;
-    let stdout = child.stdout.take().context("missing extraction stdout")?;
-    let stderr = child.stderr.take().context("missing extraction stderr")?;
+    let stdout = child
+        .inner()
+        .stdout
+        .take()
+        .context("missing extraction stdout")?;
+    let stderr = child
+        .inner()
+        .stderr
+        .take()
+        .context("missing extraction stderr")?;
     let stderr_reader = std::thread::spawn(move || {
         let mut stderr = stderr;
         let mut buffer = Vec::new();
@@ -930,11 +950,30 @@ fn extract_snapshot(
         let _ = std::io::copy(&mut stderr, &mut std::io::sink());
         buffer
     });
+    let started = Instant::now();
+    let watchdog = std::thread::spawn(move || {
+        loop {
+            if bailiff::process::cancelled() || started.elapsed() >= COMMAND_TIMEOUT {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(if bailiff::process::cancelled() {
+                    "extraction cancelled"
+                } else {
+                    "extraction timed out"
+                });
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => return Ok(status),
+                Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+                Err(_) => return Err("extraction process wait failed"),
+            }
+        }
+    });
     let result = extract_tar(stdout, staging, manifest);
-    if result.is_err() {
-        let _ = child.kill();
-    }
-    let status = child.wait().context("cannot wait for extraction process")?;
+    let status = watchdog
+        .join()
+        .map_err(|_| anyhow::anyhow!("extraction watchdog failed"))?
+        .map_err(|message| anyhow::anyhow!(message))?;
     let _stderr = stderr_reader.join().unwrap_or_default();
     result?;
     ensure!(status.success(), "backend extraction exited nonzero");

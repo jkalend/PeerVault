@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import secrets
 import subprocess
+import time
 
 
 def run(binary, args, environment=None, timeout=1800):
@@ -229,10 +230,27 @@ def main():
         ),
         "pinned restore",
     )
-    evidence = root / "peer-evidence.json"
-    evidence.write_text(restored.stdout, encoding="utf-8")
-
     peer_repository_id = secrets.token_hex(32)
+    restore_report = json.loads(restored.stdout)
+    evidence = root / "peer-evidence.json"
+    evidence.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "result": "pass",
+                "peer_repository_id": peer_repository_id,
+                "snapshot_id": pinned["id"],
+                "manifest_snapshot_id": pinned["oracle_manifest"],
+                "verification": "manifest-hash",
+                "verified_unix_seconds": int(time.time()),
+                "note": "same-host retention drill wrapper; not independent peer evidence",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert restore_report["verification"] == "manifest-hash"
     require(
         call(
             [

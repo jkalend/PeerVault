@@ -25,17 +25,20 @@ if (-not $stateDirectory -or -not (Test-Path -LiteralPath $stateDirectory -PathT
 
 if ($ProtectedSecret) {
     $ProtectedSecret = (Resolve-Path -LiteralPath $ProtectedSecret -ErrorAction Stop).Path
-    if (-not $SecretPath) { throw "SecretPath is required with ProtectedSecret" }
-    $SecretPath = [IO.Path]::GetFullPath($SecretPath)
-    if (-not (Test-Path -LiteralPath (Split-Path -Parent $SecretPath) -PathType Container)) {
-        throw "SecretPath directory must exist"
+    $secretArgument = ""
+    if ($SecretPath) {
+        $SecretPath = [IO.Path]::GetFullPath($SecretPath)
+        if (-not (Test-Path -LiteralPath (Split-Path -Parent $SecretPath) -PathType Container)) {
+            throw "SecretPath directory must exist"
+        }
+        $secretArgument = " -SecretPath `"$SecretPath`""
     }
     if (-not $RunnerScript) { $RunnerScript = Join-Path $PSScriptRoot "task-run.ps1" }
     $RunnerScript = (Resolve-Path -LiteralPath $RunnerScript -ErrorAction Stop).Path
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument (
         "-NoProfile -ExecutionPolicy Bypass -File `"$RunnerScript`" " +
         "-Core `"$Core`" -Config `"$Config`" -State `"$State`" " +
-        "-ProtectedSecret `"$ProtectedSecret`" -SecretPath `"$SecretPath`"")
+        "-ProtectedSecret `"$ProtectedSecret`"$secretArgument")
     $secretSource = "DPAPI current-user secret; runtime file removed after each tick"
 } else {
     $action = New-ScheduledTaskAction -Execute $Core -Argument "schedule-tick --config `"$Config`" --state `"$State`""

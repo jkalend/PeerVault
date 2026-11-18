@@ -80,6 +80,8 @@ def main():
     assert len(expected[0]) == SMALL_FILES + 1
     secret = arguments.source_root / "secret.txt"
     secret.write_text(secrets.token_hex(24), encoding="utf-8")
+    if os.name != "nt":
+        os.chmod(secret, 0o600)
     environment = dict(os.environ, PEERVAULT_PASSWORD="")
     binary, backend = os.path.abspath(arguments.binary), os.path.abspath(arguments.backend)
     repository = arguments.source_root / "repository"

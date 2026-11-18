@@ -367,9 +367,28 @@ fn select(
             "{reason} snapshot has no PeerVault oracle"
         );
     }
+    let future_cutoff = i64::try_from(now_unix)
+        .ok()
+        .and_then(|seconds| seconds.checked_mul(1_000_000_000))
+        .and_then(|nanos| nanos.checked_add(300_000_000_000));
+    let future: BTreeSet<&str> = future_cutoff
+        .map(|cutoff| {
+            ordered
+                .iter()
+                .filter(|snapshot| {
+                    instants
+                        .get(&snapshot.id)
+                        .is_some_and(|timestamp| *timestamp > cutoff)
+                })
+                .map(|snapshot| snapshot.id.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
     let restorable: Vec<&SnapshotRef> = ordered
         .iter()
-        .filter(|snapshot| snapshot.oracle_manifest.is_some())
+        .filter(|snapshot| {
+            snapshot.oracle_manifest.is_some() && !future.contains(snapshot.id.as_str())
+        })
         .collect();
     let restorable_ids: BTreeSet<&str> = restorable
         .iter()
@@ -446,6 +465,8 @@ fn select(
     for snapshot in &ordered {
         if snapshot.oracle_manifest.is_none() {
             protected.push(decision(snapshot, "missing-oracle"));
+        } else if future.contains(snapshot.id.as_str()) {
+            protected.push(decision(snapshot, "future-timestamp"));
         }
     }
     let protected_ids: BTreeSet<&str> = protected
@@ -616,9 +637,14 @@ fn write_state(path: &Path, state: &RetentionState) -> Result<()> {
         fs::remove_file(&temp).context("cannot remove stale retention temporary state")?;
     }
     let bytes = serde_json::to_vec_pretty(state).context("cannot encode retention state")?;
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
         .open(&temp)
         .context("cannot create retention temporary state")?;
     file.write_all(&bytes)
@@ -895,7 +921,11 @@ fn validate_repository_binding(
     Ok(())
 }
 
-fn evidence_digest(path: &Path) -> Result<(String, String)> {
+fn evidence_digest(
+    path: &Path,
+    input: &PeerRecordInput<'_>,
+    now: u64,
+) -> Result<(String, String, u64)> {
     let path = fs::canonicalize(path).context("cannot resolve peer evidence path")?;
     let metadata = fs::metadata(&path).context("cannot inspect peer evidence")?;
     ensure!(metadata.is_file(), "peer evidence must be a regular file");
@@ -903,8 +933,64 @@ fn evidence_digest(path: &Path) -> Result<(String, String)> {
         (1..=MAX_EVIDENCE_BYTES).contains(&metadata.len()),
         "peer evidence must be 1..=16 MiB"
     );
-    let (_, digest) = bailiff::fixture::hash_file(&path).context("cannot hash peer evidence")?;
-    Ok((path.display().to_string(), digest))
+    let bytes = read_bounded(&path, MAX_EVIDENCE_BYTES)?;
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).context("peer evidence must be a JSON report")?;
+    ensure!(
+        value.get("peer_repository_id").and_then(|v| v.as_str()) == Some(input.peer_repository_id),
+        "peer evidence repository ID does not match"
+    );
+    let snapshot = value
+        .get("peer_snapshot")
+        .or_else(|| value.get("snapshot_id"))
+        .and_then(|v| v.as_str())
+        .context("peer evidence lacks a snapshot ID")?;
+    ensure!(
+        snapshot == input.snapshot,
+        "peer evidence snapshot does not match"
+    );
+    if let Some(manifest) = value
+        .get("oracle_manifest")
+        .or_else(|| value.get("manifest_snapshot_id"))
+        .and_then(|v| v.as_str())
+    {
+        ensure!(
+            input.oracle_manifest == Some(manifest),
+            "peer evidence oracle does not match"
+        );
+    }
+    let passed = value.get("state").and_then(|v| v.as_str()) == Some("clean-restored")
+        || value.get("result").and_then(|v| v.as_str()) == Some("pass");
+    ensure!(passed, "peer evidence does not report a completed recovery");
+    if let Some(steps) = value.get("steps").and_then(|v| v.as_array()) {
+        ensure!(
+            steps.iter().any(|step| {
+                step.get("state").and_then(|v| v.as_str()) == Some("clean-restored")
+                    && step.get("result").and_then(|v| v.as_str()) == Some("pass")
+            }),
+            "peer evidence step trail has no passing clean restore"
+        );
+    }
+    let verified = value
+        .get("verified_unix_seconds")
+        .or_else(|| value.get("updated_unix_seconds"))
+        .and_then(|v| v.as_u64())
+        .context("peer evidence lacks a verification time")?;
+    ensure!(
+        verified <= now.saturating_add(300),
+        "peer evidence verification time is in the future"
+    );
+    ensure!(
+        verified >= now.saturating_sub(31 * 24 * 60 * 60),
+        "peer evidence is older than 31 days"
+    );
+    if let Some(claimed) = input.verified_unix_seconds {
+        ensure!(
+            claimed == verified,
+            "peer verification time does not match the evidence"
+        );
+    }
+    Ok((path.display().to_string(), sha256_hex(&bytes), verified))
 }
 
 pub fn state_init(
@@ -999,15 +1085,10 @@ pub fn peer_record(state_path: &Path, input: PeerRecordInput<'_>) -> Result<()> 
         valid_key(input.key_version),
         "invalid key version reference"
     );
-    let (evidence_path, evidence_sha256) = evidence_digest(input.evidence)?;
     let _lock = acquire_lock(state_path)?;
     let (mut state, _) = read_state(state_path)?;
     let now = unix_now()?;
-    let verified = input.verified_unix_seconds.unwrap_or(now);
-    ensure!(
-        verified <= now.saturating_add(300),
-        "peer verification time is in the future"
-    );
+    let (evidence_path, evidence_sha256, verified) = evidence_digest(input.evidence, &input, now)?;
     let sequence = latest_root(&state, input.peer_id)
         .map(|root| root.sequence + 1)
         .unwrap_or(1);
@@ -1118,6 +1199,10 @@ pub fn preview(
     let selection = select(&policy, &snapshots, &roots, now)?;
     let mass_change = mass_change(&backend, &repository, &credential, &state, &snapshots);
     let no_peer_root = policy.required_peers.is_empty();
+    let future_timestamp = selection
+        .protected
+        .iter()
+        .any(|decision| decision.reason == "future-timestamp");
     let plan = RetentionPlan {
         schema_version: SCHEMA_VERSION,
         action: "preview".into(),
@@ -1151,6 +1236,12 @@ pub fn preview(
             if no_peer_root {
                 limitations.push(
                     "no independent peer root is required; deletion may leave only local history"
+                        .into(),
+                );
+            }
+            if future_timestamp {
+                limitations.push(
+                    "a snapshot timestamp is more than five minutes in the future; it is protected and does not consume a keep slot"
                         .into(),
                 );
             }
@@ -1441,18 +1532,31 @@ pub fn apply(
             ),
         ));
     }
-    let baseline = baseline_from_newest(&backend, &repository, &credential, &remaining);
-    let (baseline_state, baseline_reason) = match baseline {
-        Ok(baseline) => {
-            state.last_validated = baseline;
-            ("updated", None)
-        }
+    state.last_validated = match baseline_from_newest(
+        &backend,
+        &repository,
+        &credential,
+        &remaining,
+    ) {
+        Ok(baseline) => baseline,
         Err(error) => {
             state.last_validated = None;
-            (
+            sync_state(
+                &mut state,
+                now,
+                &plan.preview_id,
                 "unknown",
+                forget.clone(),
                 Some(format!("post-maintenance baseline failed: {error:#}")),
-            )
+            );
+            write_state(state_path, &state)?;
+            return Err(production::failure(
+                production::EXIT_FAILURE,
+                format!(
+                    "maintenance removed the previewed set but the post-maintenance baseline failed; state generation {} records an unknown outcome",
+                    state.generation
+                ),
+            ));
         }
     };
     sync_state(
@@ -1461,7 +1565,7 @@ pub fn apply(
         &plan.preview_id,
         "pass",
         forget.clone(),
-        baseline_reason,
+        None,
     );
     write_state(state_path, &state)?;
     drop(lock);
@@ -1472,7 +1576,7 @@ pub fn apply(
         state_generation: state.generation,
         forgotten: forget,
         kept: plan.keep.into_iter().map(|decision| decision.id).collect(),
-        baseline: baseline_state,
+        baseline: "updated",
         mass_change_acknowledged: acknowledge_mass_change,
         elapsed_ms: started.elapsed().as_millis(),
         limitations: vec![
@@ -1490,6 +1594,10 @@ mod tests {
 
     fn at(value: &str) -> i64 {
         instant(value).unwrap()
+    }
+
+    fn now_seconds(value: &str) -> u64 {
+        (at(value) / 1_000_000_000) as u64
     }
 
     fn snapshot(index: u8, tags: &[&str], oracle: bool, time: &str) -> SnapshotRef {
@@ -1533,7 +1641,7 @@ mod tests {
             snapshot(4, &[], true, "2026-11-01T00:00:04+00:00"),
         ];
         let policy = policy(1, &["keep"], &[&snapshots[0].id], 1, 1, 0);
-        let now = at("2026-11-02T00:00:00+00:00") as u64;
+        let now = now_seconds("2026-11-02T00:00:00+00:00");
         let selection = select(&policy, &snapshots, &BTreeMap::new(), now)?;
         let keep_ids: Vec<&str> = selection
             .keep
@@ -1553,7 +1661,7 @@ mod tests {
     fn preview_orders_by_instant_not_timestamp_text() -> Result<()> {
         let earlier = snapshot(1, &[], true, "2026-11-01T00:30:00+01:00");
         let later = snapshot(2, &[], true, "2026-11-01T00:00:00Z");
-        let now = at("2026-11-02T00:00:00Z") as u64;
+        let now = now_seconds("2026-11-02T00:00:00Z");
         let selection = select(
             &policy(1, &[], &[], 1, 1, 0),
             &[earlier, later.clone()],
@@ -1569,7 +1677,7 @@ mod tests {
     fn incomplete_newest_capture_does_not_consume_keep_slot() -> Result<()> {
         let older = snapshot(1, &[], true, "2026-11-01T00:00:01+00:00");
         let incomplete = snapshot(2, &[], false, "2026-11-01T00:00:02+00:00");
-        let now = at("2026-11-02T00:00:00+00:00") as u64;
+        let now = now_seconds("2026-11-02T00:00:00+00:00");
         let selection = select(
             &policy(1, &[], &[], 1, 1, 0),
             &[older.clone(), incomplete.clone()],
@@ -1592,7 +1700,7 @@ mod tests {
             snapshot(3, &[], true, "2026-11-15T00:00:00Z"),
             snapshot(4, &[], true, "2026-11-17T00:00:00Z"),
         ];
-        let now = at("2026-11-18T00:00:00Z") as u64;
+        let now = now_seconds("2026-11-18T00:00:00Z");
         let selection = select(
             &policy(0, &[], &[], 1, 3, 30),
             &snapshots,
@@ -1613,13 +1721,36 @@ mod tests {
     }
 
     #[test]
+    fn future_timestamp_is_protected_and_does_not_consume_a_keep_slot() -> Result<()> {
+        let old = snapshot(1, &[], true, "2026-11-01T00:00:00Z");
+        let future = snapshot(2, &[], true, "2030-01-01T00:00:00Z");
+        let now = now_seconds("2026-11-03T00:00:00Z");
+        let selection = select(
+            &policy(1, &[], &[], 1, 1, 0),
+            &[old.clone(), future.clone()],
+            &BTreeMap::new(),
+            now,
+        )?;
+        assert_eq!(selection.keep.len(), 1);
+        assert_eq!(selection.keep[0].id, old.id);
+        assert!(
+            selection
+                .protected
+                .iter()
+                .any(|decision| decision.id == future.id && decision.reason == "future-timestamp")
+        );
+        assert!(selection.delete_candidates.is_empty());
+        Ok(())
+    }
+
+    #[test]
     fn peer_root_pin_is_kept_even_when_policy_would_delete_it() -> Result<()> {
         let snapshots = vec![
             snapshot(1, &[], true, "2026-11-01T00:00:00Z"),
             snapshot(2, &[], true, "2026-11-02T00:00:00Z"),
         ];
         let roots = BTreeMap::from([(snapshots[0].id.clone(), "peer-root:alpha".to_owned())]);
-        let now = at("2026-11-03T00:00:00Z") as u64;
+        let now = now_seconds("2026-11-03T00:00:00Z");
         let selection = select(&policy(1, &[], &[], 1, 1, 0), &snapshots, &roots, now)?;
         assert!(
             selection
@@ -1648,6 +1779,55 @@ mod tests {
         assert!(u128::from(changed_bytes) * 100 >= u128::from(previous_bytes) * 25);
         let changed_bytes = 24u64;
         assert!(u128::from(changed_bytes) * 100 < u128::from(previous_bytes) * 25);
+    }
+
+    #[test]
+    fn peer_evidence_must_bind_snapshot_repository_and_time() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("evidence.json");
+        let now = 1_800_000_000u64;
+        let snapshot = "a".repeat(64);
+        let manifest = "b".repeat(64);
+        let repository = "c".repeat(64);
+        let write = |value: serde_json::Value| -> Result<()> {
+            std::fs::write(&path, serde_json::to_vec(&value)?)?;
+            Ok(())
+        };
+        let input = PeerRecordInput {
+            peer_id: "alpha",
+            peer_repository_id: &repository,
+            snapshot: &snapshot,
+            capture_id: None,
+            oracle_manifest: Some(&manifest),
+            key_version: "v1",
+            evidence: &path,
+            verified_unix_seconds: None,
+        };
+        write(serde_json::json!({
+            "result": "pass",
+            "peer_repository_id": repository,
+            "snapshot_id": snapshot,
+            "manifest_snapshot_id": manifest,
+            "verified_unix_seconds": now
+        }))?;
+        assert!(evidence_digest(&path, &input, now).is_ok());
+        write(serde_json::json!({
+            "result": "pass",
+            "peer_repository_id": repository,
+            "snapshot_id": "d".repeat(64),
+            "manifest_snapshot_id": manifest,
+            "verified_unix_seconds": now
+        }))?;
+        assert!(evidence_digest(&path, &input, now).is_err());
+        write(serde_json::json!({
+            "result": "pass",
+            "peer_repository_id": repository,
+            "snapshot_id": snapshot,
+            "manifest_snapshot_id": manifest,
+            "verified_unix_seconds": now.saturating_sub(32 * 24 * 60 * 60)
+        }))?;
+        assert!(evidence_digest(&path, &input, now).is_err());
+        Ok(())
     }
 
     #[test]

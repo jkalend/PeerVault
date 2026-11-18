@@ -52,10 +52,11 @@ marked passed from source presence, CI definitions or a partial drill.
    denied access, disk full, clock/storage stress and hostile archive containment.
 3. **Product surface**: scheduling/status and the Windows desktop with owner-only
    IPC; no supported GUI exists.
-4. **Release engineering**: independent security review, frozen compatibility and
-   support matrix, packaged clean recovery, publisher verification, signed
-   artifacts and owner go/no-go. The bailiff/Components Apache-2.0 relicensing is
-   published and the package license gate now passes.
+4. **Release engineering**: external independent security review (internal
+   F1–F9 fixes are recorded in `security-review-2026-11-18.md`), frozen
+   compatibility and support matrix, packaged clean recovery, publisher
+   verification, signed artifacts and owner go/no-go. The bailiff/Components
+   Apache-2.0 relicensing is published and the package license gate passes.
 5. **Retention**: deletion/maintenance exists, but the independent security
    checkpoint, concurrent capture/restore/transfer, disk-full, kill-at-phase,
    clock/listing and remote-peer-root cases are not qualified.

@@ -61,7 +61,8 @@ def main():
     plaintext = root / "plaintext-secret.txt"
     plaintext.write_text(secrets.token_hex(24), encoding="utf-8")
     protected = root / "repository-secret.dpapi"
-    runtime = root / "runtime-secret.txt"
+    run_directory = Path(os.environ["LOCALAPPDATA"]) / "PeerVault" / "run"
+    before = set(run_directory.glob("secret-*.txt")) if run_directory.is_dir() else set()
     require(
         run(
             [
@@ -151,13 +152,12 @@ def main():
                 str(state),
                 "-ProtectedSecret",
                 str(protected),
-                "-SecretPath",
-                str(runtime),
             ]
         ),
         "task-run",
     )
-    assert not runtime.exists(), "runtime secret was not removed"
+    after = set(run_directory.glob("secret-*.txt")) if run_directory.is_dir() else set()
+    assert after <= before, "runtime secret was not removed"
     state_data = json.loads(state.read_text(encoding="utf-8"))
     job = state_data["jobs"]["daily-verify"]
     assert job["last_result"] == "pass", state_data
