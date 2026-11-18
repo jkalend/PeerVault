@@ -19,6 +19,10 @@ use std::{
     io::{Read, Write},
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tar::EntryType;
@@ -951,13 +955,20 @@ fn extract_snapshot(
         buffer
     });
     let started = Instant::now();
+    let stop = Arc::new(AtomicBool::new(false));
+    let watchdog_stop = Arc::clone(&stop);
     let watchdog = std::thread::spawn(move || {
         loop {
-            if bailiff::process::cancelled() || started.elapsed() >= COMMAND_TIMEOUT {
+            if watchdog_stop.load(Ordering::SeqCst)
+                || bailiff::process::cancelled()
+                || started.elapsed() >= COMMAND_TIMEOUT
+            {
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(if bailiff::process::cancelled() {
                     "extraction cancelled"
+                } else if watchdog_stop.load(Ordering::SeqCst) {
+                    "extraction stopped after a containment failure"
                 } else {
                     "extraction timed out"
                 });
@@ -970,12 +981,15 @@ fn extract_snapshot(
         }
     });
     let result = extract_tar(stdout, staging, manifest);
-    let status = watchdog
+    if result.is_err() {
+        stop.store(true, Ordering::SeqCst);
+    }
+    let outcome = watchdog
         .join()
-        .map_err(|_| anyhow::anyhow!("extraction watchdog failed"))?
-        .map_err(|message| anyhow::anyhow!(message))?;
+        .map_err(|_| anyhow::anyhow!("extraction watchdog failed"))?;
     let _stderr = stderr_reader.join().unwrap_or_default();
     result?;
+    let status = outcome.map_err(|message| anyhow::anyhow!(message))?;
     ensure!(status.success(), "backend extraction exited nonzero");
     Ok(())
 }
