@@ -22,7 +22,7 @@ requires a new candidate.
 
 | P | Gate | Status | Required evidence |
 |---|---|---|---|
-| P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44396857979` passed package verification without override |
+| P0 | Redistribution license | **pass** | bailiff relicensed Apache-2.0 in published Components `3f674a2`; CI run `44406547815` passed package verification without override |
 | P0 | Independent security review | **two internal reviews complete; external open** | internal findings F1–F12 fixed and retested (`security-review-2026-11-18.md`); an external reviewer must still verify adapter/process, containment, credentials, peer authorization, dependencies and destructive retention |
 | P0 | Power-loss / kill-at-phase | **pass (scoped VM)** | QEMU/TCG Ubuntu guest hard-killed during capture; ext4 recovery, prior snapshot verify and exact restore pass; physical hardware and other phases remain additional coverage |
 | P0 | Upgrade/rollback | partial | previous-commit read/restore both directions passes; prior supported artifact, interrupted migration and verified pre-migration copy open |
